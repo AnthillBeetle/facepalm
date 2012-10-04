@@ -1,10 +1,3 @@
-rename table users to users_old;
-rename table masterpieces to masterpieces_old;
-rename table votes to votes_old;
-rename table registrations to user_registrations_old;
-rename table categories to contest_categories_old;
-
-
 create table user_roles(
     id int not null auto_increment primary key,
     identifier varchar(255) unique not null,
