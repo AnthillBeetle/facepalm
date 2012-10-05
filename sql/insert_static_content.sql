@@ -1,10 +1,3 @@
-delete from votes;
-delete from masterpieces;
-delete from contest_categories;
-delete from contests;
-delete from users;
-
-
 insert into user_roles(identifier, name) values('banned', 'бан');
 insert into user_roles(identifier, name) values('anonymous', 'аноним');
 insert into user_roles(identifier, name) values('registered', 'зарегистрированный пользователь');
