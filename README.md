@@ -1,5 +1,4 @@
 facepalm
 ========
 
-godville.net contests
-
+Godville Content Awards Engine ("Facepalm web-engine")
