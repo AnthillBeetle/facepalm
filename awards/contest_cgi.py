@@ -64,7 +64,7 @@ def escape(string):
 
 
 def multiline_escape(string, spacing = ''):
-    return escape(string).replace('\n', '\n' + spacing + '  <br>')
+    return escape(string).replace('\r', '').replace('\n', '\n' + spacing + '  <br>')
 
 
 def random_password():
@@ -72,6 +72,30 @@ def random_password():
     for i in xrange(0, 6):
         string += chr(random.randint(0, 255))
     return base64.b64encode(string)
+
+
+def print_masterpiece_for_forum(masterpiece):
+    section_prefix = static.ideabox_sections[masterpiece.ideabox_section].prefix
+    stage_clarification = static.ideabox_stages[masterpiece.ideabox_stage].clarification
+    ideabox_note = ''
+    if section_prefix:
+        ideabox_note += '_'
+        ideabox_note += section_prefix
+        if stage_clarification:
+            ideabox_note += ' (' + stage_clarification + ')'
+        ideabox_note += ':_ '
+    elif stage_clarification:
+        ideabox_note += '_(' + stage_clarification + ')_ '
+
+    print '—'
+    print
+
+    print 'bq. ' + ideabox_note + multiline_escape(masterpiece.content.replace('\r', '').replace('\n', ' '))
+    print
+
+    if masterpiece.authors_explanation:
+        print 'bq. _Пояснение:_ ' + multiline_escape(masterpiece.authors_explanation.replace('\r', '').replace('\n', ' '))
+        print
 
 
 def print_masterpiece(spacing, masterpiece):
@@ -540,7 +564,9 @@ def print_review(cursor):
 
     print_round_timing(cursor)
 
-    is_first = True
+    format = form['format'].value if 'format' in form else None
+
+    order = 'asc' if format else 'desc'
 
     masterpieces = my.sql.get_indexed_named_tuples(cursor, '''
         select
@@ -556,28 +582,44 @@ def print_review(cursor):
                 ) nominations on masterpieces.id = nominations.masterpiece
             left join users on masterpieces.user = users.id
         order by
-            masterpieces.added desc,
-            masterpieces.id desc''',
+            masterpieces.added ''' + order + ''',
+            masterpieces.id ''' + order,
         (current_round_id,))
 
     if not masterpieces:
         print '    <div style="text-align: center;">Пока ничего не номинировано.</div>'
         return
 
-    cursor.execute('''
-        select nominations.masterpiece, categories.name
-        from nominations, contest_categories categories
-        where
-            nominations.contest_round = %s and
-            nominations.contest_category = categories.id
-        order by nominations.masterpiece, categories.priority''',
-        (current_round_id,))
-    masterpiece_nomination_names = collections.defaultdict(list)
-    for masterpiece_id, category_name in cursor.fetchall():
-        masterpiece_nomination_names[masterpiece_id].append(category_name)
+    if format == 'forum':
+        print '    <textarea style="width: 100%;" rows="24" readonly>'
 
-    for masterpiece in masterpieces:
-        print_nominated_masterpiece(masterpiece, masterpiece_nomination_names)
+        for masterpiece in masterpieces:
+            print_masterpiece_for_forum(masterpiece)
+
+        print '</textarea>'
+
+        print '    <p style="text-align: right;">'
+        print '        ' + pages.review.page_link('обычная версия')
+        print '      </p>'
+    else:
+        cursor.execute('''
+            select nominations.masterpiece, categories.name
+            from nominations, contest_categories categories
+            where
+                nominations.contest_round = %s and
+                nominations.contest_category = categories.id
+            order by nominations.masterpiece, categories.priority''',
+            (current_round_id,))
+        masterpiece_nomination_names = collections.defaultdict(list)
+        for masterpiece_id, category_name in cursor.fetchall():
+            masterpiece_nomination_names[masterpiece_id].append(category_name)
+
+        for masterpiece in masterpieces:
+            print_nominated_masterpiece(masterpiece, masterpiece_nomination_names)
+
+        print '    <p style="text-align: right;">'
+        print '        ' + pages.review.page_link('версия для форума', 'format=forum')
+        print '      </p>'
 
 
 def process_review(cursor):
@@ -624,12 +666,10 @@ def print_voting(cursor):
 
     print '    <p><center>'
     for category in available_categories:
-        category_line = category.name
         if category == selected_category:
-            category_line = '<b>' + category_line + '</b>'
+            category_line = '<b>' + category.name + '</b>'
         else:
-            category_location = pages.voting.location + 'category=' + str(category.id)
-            category_line = '<a href="' + category_location + '" class="pagename">' + category_line + '</a>'
+            category_line = pages.voting.page_link(category.name, 'category=' + str(category.id))
         if category.index > 0:
             category_line = '| ' + category_line
         category_line = ' '*8 + category_line
@@ -765,9 +805,9 @@ def print_votes(cursor):
     for masterpiece in masterpieces:
         print '    <div style="padding: 1ex;">'
         print '        <b>' + escape(masterpiece.category_name) + '</b>'
-        change_location = pages.voting.location + 'category=' + str(masterpiece.category_id) + '&one_off=yes'
-        vote_text = 'переголосовать' if masterpiece.content else 'проголосовать'
-        print '        <a href="' + change_location + '" class="pagename">(' + vote_text + ')</a>'
+        print '        ' + pages.voting.page_link(
+            '(переголосовать)' if masterpiece.content else '(проголосовать)',
+            'category=' + str(masterpiece.category_id) + '&one_off=yes')
         print '        <div style="padding-left: 4ex;">'
         if masterpiece.content:
             print_masterpiece(' '*12, masterpiece)
@@ -1237,10 +1277,10 @@ class Page:
         self.is_shown = False
     def hide(self):
         self.is_shown = False
-    def page_link(self, name = None):
+    def page_link(self, name = None, query_parameters = ''):
         if name == None:
             name = self.name
-        return '<a class="pagename" href="' + script_name + '?page=' + self.identifier + '">' + name + '</a>'
+        return '<a class="pagename" href="' + (self.location + query_parameters).rstrip('?') + '">' + name + '</a>'
 
 
 def init_pages():
@@ -1356,7 +1396,7 @@ def print_pagelist():
             if page == selected_page:
                 print '        | <b>' + page.name + '</b>'
             else:
-                print '        | <a class="pagename" href="' + page.location.rstrip('&?') + '">' + page.name + '</a>'
+                print '        | ' + page.page_link()
     print '      </p>'
 
 
