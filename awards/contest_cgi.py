@@ -87,7 +87,7 @@ def print_masterpiece_for_forum(masterpiece):
     elif stage_clarification:
         ideabox_note += '_(' + stage_clarification + ')_ '
 
-    print '—'
+    print '@___________________________@'
     print
 
     print 'bq. ' + ideabox_note + multiline_escape(masterpiece.content.replace('\r', '').replace('\n', ' '))
