@@ -30,6 +30,10 @@ import MySQLdb
 
 
 def init(cursor, contest_identifier):
+    global start_time
+    start_time = my.sql.get_unique_one(cursor,
+        'select current_timestamp')
+
     global user_roles
     user_roles = my.sql.get_indexed_named_tuples(cursor,
         'select * from user_roles')

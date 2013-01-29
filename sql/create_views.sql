@@ -15,6 +15,20 @@
 --- You should have received a copy of the GNU General Public License
 --- along with Facepalm web-engine. If not, see <http://www.gnu.org/licenses/>.
 
+create view current_rounds as
+    select *
+    from current_and_future_rounds
+    where not is_future;
+
+create view current_and_future_stages as
+    select
+        rounds.is_future, rounds.contest, stages.*
+    from
+        current_and_future_rounds rounds
+        inner join contest_rounds_and_stages stages on
+            rounds.round = stages.round and
+            rounds.stage = stages.stage;
+
 
 create view vote_multiples as
     select

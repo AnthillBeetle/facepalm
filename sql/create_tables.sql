@@ -76,20 +76,20 @@ create table contest_stages(
 create table contest_rounds_and_stages(
     round int not null,
     stage int not null,
-    begins timestamp null,
-    ends timestamp null,
+    begins datetime not null,
+    ends datetime not null,
     primary key(round, stage),
     foreign key(round) references contest_rounds(id),
     foreign key(stage) references contest_stages(id)
 );
-create table current_rounds(
+create table current_and_future_rounds(
+    is_future bool not null,
     contest int not null,
     stage int not null,
     round int not null,
-    primary key(contest, stage),
-    foreign key(contest) references contests(id),
+    primary key(is_future, contest, stage),
     foreign key(stage) references contest_stages(id),
-    foreign key(round) references contest_rounds(id)
+    foreign key(round, contest) references contest_rounds(id, contest)
 );
 
 create table contests_and_users(

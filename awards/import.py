@@ -164,6 +164,7 @@ def main():
 
     database = MySQLdb.connect(charset = 'utf8', use_unicode = False, **configuration.database)
     with my.sql.AutoCursor(database) as cursor:
+        cursor.execute('set sql_mode = traditional')
         cursor.execute('set time_zone = \x27+4:00\x27')
         static.init(cursor, contest_identifier)
         main_with_cursor(cursor)

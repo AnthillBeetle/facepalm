@@ -305,9 +305,9 @@ def enddate2str(date, __one_second = datetime.timedelta(seconds = 1)):
 def print_round_timing(cursor):
     print '    <p style="text-align: center;">'
     current_stages = my.sql.get_indexed_named_tuples(cursor, '''
-        select stage id, t.*, now() >= t.ends has_ended
-        from contest_rounds_and_stages t
-        where round = %s ''',
+        select stage id, contest_rounds_and_stages.*
+        from contest_rounds_and_stages
+        where round = %s''',
         (current_round_id,))
     stages = static.contest_stages
     if stages.publishing.id in current_stages:
@@ -324,11 +324,12 @@ def print_round_timing(cursor):
             print '        с&nbsp;' + date2str(publishing.begins) +' по&nbsp;' + enddate2str(publishing.ends) + '.'
     if stages.voting.id in current_stages:
         voting = current_stages[stages.voting.id]
-        if voting.begins and selected_page in (pages.nomination, pages.review):
-            print '        Голосование&nbsp;начнётся&nbsp;' + date2str(voting.begins) + '.'
-        if voting.ends and selected_page in (pages.voting, pages.votes, pages.results):
-            end_verb = 'окончилось' if voting.has_ended else 'окончится'
-            print '        Голосование&nbsp;' + end_verb + '&nbsp;' + enddate2str(voting.ends) + '.'
+        if selected_page in (pages.nomination, pages.review):
+            verb = 'началось' if voting.begins <= static.start_time else 'начнётся'
+            print '        Голосование&nbsp;' + verb + '&nbsp;' + date2str(voting.begins) + '.'
+        if selected_page in (pages.voting, pages.votes, pages.results):
+            verb = 'окончилось' if voting.ends <= static.start_time else 'окончится'
+            print '        Голосование&nbsp;' + verb + '&nbsp;' + enddate2str(voting.ends) + '.'
     print '      </p>'
 
 
@@ -648,18 +649,29 @@ def prepare_voting(cursor):
     page_subtitle = selected_category.name
 
 
-def print_voting_closed_message():
+def print_voting_closed_message(cursor):
     godville_topic_url = 'http://godville.net/forums/show_topic/' + str(static.contest.godville_topic_id)
     print '    <p><center>'
+
     print '        Голосование окончено.'
     print '        Итоги последнего голосования можно найти'
     print '        <a href="' + godville_topic_url + '?page=last">на форуме</a>.'
+
+    next_voting_time = my.sql.get_unique_one(cursor, '''
+        select begins
+        from current_and_future_stages
+        where is_future = True and contest = %s and stage = %s''',
+        (static.contest.id, static.contest_stages.voting.id))
+    if next_voting_time:
+        print '        <br>'
+        print '        Следующее голосование начнётся ' + date2str(next_voting_time) + '.'
+
     print '      </center><p>'
 
 
 def print_voting(cursor):
     if not current_round_id:
-        print_voting_closed_message()
+        print_voting_closed_message(cursor)
         return
 
     print_round_timing(cursor)
@@ -778,7 +790,7 @@ def print_votes(cursor):
     # Should tolerate no <code>user</code>.
 
     if not current_round_id:
-        print_voting_closed_message()
+        print_voting_closed_message(cursor)
         return
 
     print_round_timing(cursor)
@@ -874,7 +886,17 @@ def print_results(cursor):
 
         if not current_round_id:
             print '    <p><center>'
+
             print '        Пока нет результатов.'
+            next_results_time = my.sql.get_unique_one(cursor, '''
+                select begins
+                from current_and_future_stages
+                where is_future = True and contest = %s and stage = %s''',
+                (static.contest.id, static.contest_stages.results.id))
+            if next_results_time:
+                print '        <br>'
+                print '        Результаты будут объявлены ' + date2str(next_results_time) + '.'
+            
             print '      </center><p>'
             return
 
@@ -1211,7 +1233,7 @@ def print_profile(cursor):
     allowed_action_names = [action.description for action in allowed_actions]
     allowed_action_names.sort()
     print '      </p>'
-    print '        Разрещённые действия: ' + ', '.join(allowed_action_names) + '.'
+    print '        Разрешённые действия: ' + ', '.join(allowed_action_names) + '.'
     print '      </p>'
     print '    <p>'
     print '        <input type="submit" name="logout" value="Выйти">'
@@ -1280,7 +1302,7 @@ class Page:
     def page_link(self, name = None, query_parameters = ''):
         if name == None:
             name = self.name
-        return '<a class="pagename" href="' + (self.location + query_parameters).rstrip('?') + '">' + name + '</a>'
+        return '<a class="pagename" href="' + (self.location + query_parameters).rstrip('&?') + '">' + name + '</a>'
 
 
 def init_pages():
@@ -1409,7 +1431,42 @@ def print_errors():
     errors = []
 
 
+def maint(cursor):
+    cursor.execute('''
+        select stage, round
+        from current_and_future_stages
+        where not is_future and contest = %s and ends <= %s''',
+        (static.contest.id, static.start_time))
+    for stage, round in cursor.fetchall():
+        cursor.execute(
+            'delete from current_rounds
+            where contest = %s and stage = %s',
+            (static.contest.id, stage))
+        if stage == static.contest_stages.voting.id:
+            cursor.execute(
+                'delete from round_results where contest_round = %s',
+                (round,))
+            cursor.execute('''
+                insert into round_results
+                    select * from round_results_view where contest_round = %s''',
+                (round,))
+
+    cursor.execute('''
+        select stage, round
+        from current_and_future_stages
+        where is_future and contest = %s and begins <= %s''',
+        (static.contest.id, static.start_time))
+    for stage, round in cursor.fetchall():
+        cursor.execute('''
+            update current_and_future_rounds
+            set is_future = False
+            where is_future and contest = %s and stage = %s''',
+            (static.contest.id, stage))
+
+
 def main_with_cursor(cursor):
+    maint(cursor)
+
     global form, form_vector_names, cookie
     form = cgi.FieldStorage(keep_blank_values = True)
     form_vector_names = collections.defaultdict(list)
@@ -1493,6 +1550,7 @@ def main_with_cursor(cursor):
 def main(contest_identifier):
     database = MySQLdb.connect(charset = 'utf8', use_unicode = False, **configuration.database)
     with my.sql.AutoCursor(database) as cursor:
+        cursor.execute('set sql_mode = traditional')
         cursor.execute('set time_zone = \x27+4:00\x27')
         static.init(cursor, contest_identifier)
         main_with_cursor(cursor)

@@ -26,4 +26,5 @@ grant delete, insert, select, update, create temporary tables
 
 -- use creogodville;
 -- set time_zone = '+4:00';
+-- set sql_mode = traditional;
 
