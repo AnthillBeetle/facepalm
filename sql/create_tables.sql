@@ -88,8 +88,8 @@ create table current_and_future_rounds(
     stage int not null,
     round int not null,
     primary key(is_future, contest, stage),
-    foreign key(stage) references contest_stages(id),
-    foreign key(round, contest) references contest_rounds(id, contest)
+    foreign key(round, contest) references contest_rounds(id, contest),
+    foreign key(round, stage) references contest_rounds_and_stages(round, stage)
 );
 
 create table contests_and_users(

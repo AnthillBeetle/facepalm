@@ -1438,9 +1438,9 @@ def maint(cursor):
         where not is_future and contest = %s and ends <= %s''',
         (static.contest.id, static.start_time))
     for stage, round in cursor.fetchall():
-        cursor.execute(
-            'delete from current_rounds
-            where contest = %s and stage = %s',
+        cursor.execute('''
+            delete from current_and_future_rounds
+            where not is_future and contest = %s and stage = %s''',
             (static.contest.id, stage))
         if stage == static.contest_stages.voting.id:
             cursor.execute(
