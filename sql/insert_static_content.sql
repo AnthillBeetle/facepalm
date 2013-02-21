@@ -50,17 +50,19 @@ where
 
 -- select roles.identifier, actions.identifier, is_allowed from user_roles_and_actions allows, user_roles roles, user_actions actions where allows.role = roles.id and allows.action = actions.id;
 
-insert into contests(godville_topic_id, identifier, name, pagelist_suffix) values(
+insert into contests(godville_topic_id, identifier, name, pagelist_suffix, announcement) values(
     2143,
     'facepalm',
     'Золотая Фейспальмовая ветвь',
-    '| <a class="pagename" href="../karoshi/">ещё »</a>'
+    '| <a class="pagename" href="../karoshi/">ещё »</a>',
+    'А знаете ли вы, что параллельно проходит конкурс на самый лучший креатив?<br>К нему можно перейти по ссылке «ещё» справа вверху.'
 );
-insert into contests(godville_topic_id, identifier, name, pagelist_suffix) values(
+insert into contests(godville_topic_id, identifier, name, pagelist_suffix, announcement) values(
     2235,
     'karoshi',
     'Кароши люблю!',
-    '| <a class="pagename" href="../facepalm/">ещё »</a>'
+    '| <a class="pagename" href="../facepalm/">ещё »</a>',
+    'А знаете ли вы, что параллельно проходит конкурс на самый гениальный креатив?<br>К нему можно перейти по ссылке «ещё» справа вверху.'
 );
 
 insert into contest_stages(priority, identifier, description) values(1, 'publishing', 'публикация креатива');
