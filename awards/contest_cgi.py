@@ -170,6 +170,18 @@ def print_header():
     print '            text-align: justify;'
     #print '            font-family: serif;'
     print '          }'
+    print '        div.announcement {'
+    print '            text-align: center;'
+    print '            margin: 1ex;'
+    print '            padding: 1ex;'
+    print '            color: black;'
+    print '            background-color: #FEFFE3;'
+    print '            border: 1px solid #DCDBB6;'
+    print '            border-radius: 5px;'
+    print '            -html-border-radius: 5px;'
+    print '            -moz-border-radius: 5px;'
+    print '            -webkit-border-radius: 5px;'
+    print '          }'
     #print '        input.textsize, button.textsize, select.textsize, option.textsize, textarea.textsize {font-size: 100%;}'
     print '        input.seamless, select.seamless {border: none; padding: 0px; background-color: transparent;}'
     print '        input.seamless:hover, select.seamless:hover {border-bottom: 1px solid; margin-bottom: -1px;}'
@@ -1408,7 +1420,7 @@ def print_pagelist():
             else:
                 print '        | ' + page.page_link()
     if static.contest.pagelist_suffix:
-        print '    ' + static.contest.pagelist_suffix
+        print '        ' + static.contest.pagelist_suffix
     print '      </p>'
 
 
@@ -1513,7 +1525,6 @@ def main_with_cursor(cursor):
     print_header()
 
     if not selected_page.is_available:
-
         if static.user_actions.access in allowed_actions:
             errors.append('Недостаточно прав доступа для просмотра данной страницы.')
 
@@ -1522,7 +1533,7 @@ def main_with_cursor(cursor):
             print_errors()
 
             if not (user and user.name):
-                print '<center><p>Возможно, вам нужно ' + pages.registration.page_link('зарегистрироваться') + '.</p></center>'
+                print '    <center><p>Возможно, вам нужно ' + pages.registration.page_link('зарегистрироваться') + '.</p></center>'
         else:
             errors.append('Доступ с вашей учётной записи заблокирован.')
             print_errors()
@@ -1531,6 +1542,10 @@ def main_with_cursor(cursor):
 
         if errors:
             print_errors()
+        elif static.contest.announcement:
+            print '    <div class="announcement">'
+            print '        ' + static.contest.announcement
+            print '      </div>'
 
         selected_page.print_function(cursor)
 
