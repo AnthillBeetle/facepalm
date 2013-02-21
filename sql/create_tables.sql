@@ -59,7 +59,8 @@ create table contests(
     id int not null auto_increment primary key,
     godville_topic_id int unique not null,
     identifier varchar(255) unique not null,
-    name varchar(255) unique not null
+    name varchar(255) unique not null,
+    pagelist_suffix text not null
 );
 create table contest_rounds(
     id int not null auto_increment primary key,

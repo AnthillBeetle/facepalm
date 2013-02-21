@@ -1407,6 +1407,8 @@ def print_pagelist():
                 print '        | <b>' + page.name + '</b>'
             else:
                 print '        | ' + page.page_link()
+    if static.contest.pagelist_suffix:
+        print '    ' + static.contest.pagelist_suffix
     print '      </p>'
 
 
