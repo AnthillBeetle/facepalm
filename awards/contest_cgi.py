@@ -317,7 +317,7 @@ def print_round_timing(cursor):
                 print '        Номинирование креатива, опубликованного'
             elif selected_page == pages.review:
                 print '        Рецензирование креатива, опубликованного'
-            elif selected_page in (pages.voting, pages.votes):
+            elif selected_page == pages.voting:
                 print '        Голосование за креатив, опубликованный'
             elif selected_page == pages.results:
                 print '        Результаты голосования за креатив, опубликованный'
@@ -327,7 +327,7 @@ def print_round_timing(cursor):
         if selected_page in (pages.nomination, pages.review):
             verb = 'началось' if voting.begins <= static.start_time else 'начнётся'
             print '        Голосование&nbsp;' + verb + '&nbsp;' + date2str(voting.begins) + '.'
-        if selected_page in (pages.voting, pages.votes, pages.results):
+        if selected_page in (pages.voting, pages.results):
             verb = 'окончилось' if voting.ends <= static.start_time else 'окончится'
             print '        Голосование&nbsp;' + verb + '&nbsp;' + enddate2str(voting.ends) + '.'
     print '      </p>'
@@ -362,7 +362,8 @@ def process_entrance(cursor):
                 get_allowed_actions(cursor)
                 if old_user and not old_user.name:
                     merge_user_into(cursor, old_user.id, user.id)
-                selected_page = pages.votes
+                selected_page = pages.voting
+                redirect_parameters['category'] = 'choice'
                 return
             errors.append('Неверное имя пользователя или ключ.')
 
@@ -385,9 +386,9 @@ def print_nominated_masterpiece(masterpiece, masterpiece_nomination_names):
 
 def print_nomination(cursor):
     if not current_round_id:
-        print '    <p><center>'
+        print '    <center><p>'
         print '        Номинирование окончено. Новый раунд голосования пока не создан.'
-        print '      </center><p>'
+        print '      <p></center>'
         return
     if not user:
         errors.append('Недостаточно прав доступа для номинирования.')
@@ -554,9 +555,9 @@ def process_nomination(cursor):
 
 def print_review(cursor):
     if not current_round_id:
-        print '    <p><center>'
+        print '    <center><p>'
         print '        Рецензирование окончено. Новый раунд голосования пока не создан.'
-        print '      </center><p>'
+        print '      <p></center>'
         return
     if not user:
         errors.append('Недостаточно прав доступа для рецензирования.')
@@ -643,15 +644,19 @@ def prepare_voting(cursor):
     available_categories = static.contest_categories.values
     selected_category = available_categories[0]
     if 'category' in form:
-        category_id = int(form['category'].value)
-        if category_id in static.contest_categories:
-            selected_category = static.contest_categories[category_id]
-    page_subtitle = selected_category.name
+        if form['category'].value == 'choice':
+            selected_category = None
+        else:
+            category_id = int(form['category'].value)
+            if category_id in static.contest_categories:
+                selected_category = static.contest_categories[category_id]
+    if selected_category:
+        page_subtitle = selected_category.name
 
 
 def print_voting_closed_message(cursor):
     godville_topic_url = 'http://godville.net/forums/show_topic/' + str(static.contest.godville_topic_id)
-    print '    <p><center>'
+    print '    <center><p>'
 
     print '        Голосование окончено.'
     print '        Итоги последнего голосования можно найти'
@@ -666,28 +671,10 @@ def print_voting_closed_message(cursor):
         print '        <br>'
         print '        Следующее голосование начнётся ' + date2str(next_voting_time) + '.'
 
-    print '      </center><p>'
+    print '      <p></center>'
 
 
-def print_voting(cursor):
-    if not current_round_id:
-        print_voting_closed_message(cursor)
-        return
-
-    print_round_timing(cursor)
-
-    print '    <p><center>'
-    for category in available_categories:
-        if category == selected_category:
-            category_line = '<b>' + category.name + '</b>'
-        else:
-            category_line = pages.voting.page_link(category.name, 'category=' + str(category.id))
-        if category.index > 0:
-            category_line = '| ' + category_line
-        category_line = ' '*8 + category_line
-        print category_line
-    print '      </center></p>'
-
+def print_voting_category(cursor):
     trailing_dot = '.' if selected_category.description[-1] not in '.?!' else ''
     print '    <p>'
     print '        Категория <b>«' + escape(selected_category.name) + '»</b> —'
@@ -700,7 +687,7 @@ def print_voting(cursor):
         if len(static.contest_categories) > 1:
             print '        После голосования в одной категории автоматически отображается следующая.'
         print '        При необходимости можно вернуться и изменить свой выбор.'
-        print '      </p>'
+    print '      </p>'
 
     print '    <input type="hidden" name="category" value="' + str(selected_category.id) + '">'
     if 'one_off' not in form:
@@ -739,70 +726,16 @@ def print_voting(cursor):
 
     print '      </table>'
 
-    #print '    <p>'
-    #print '        <input type="submit" name="return" value="&lt; Назад">'
-    #if 'one_off' not in form:
-    #    print '        <input type="submit" name="advance" value="Далее &gt;">'
-    #print '    </p>'
 
-
-def process_voting(cursor):
-    global selected_page
-
-    if static.user_actions.vote not in allowed_actions:
-        errors.append('Недостаточно прав доступа для голосования.')
-        return
-    if not current_round_id:
-        return
-
-    if 'category' not in form:
-        return
-    category_id = form['category'].value
-
-    if user and 'abstain' in form:
-        cursor.execute(
-            'delete from votes where contest_round = %s and contest_category = %s and user = %s',
-            (current_round_id, category_id, user.id))
-
-    if 'vote' in form_vector_names:
-        if not user:
-            create_user(cursor)
-        for masterpiece_id in form_vector_names['vote']:
-            cursor.execute(
-                'delete from votes where contest_round = %s and contest_category = %s and user = %s',
-                (current_round_id, category_id, user.id))
-            cursor.execute(
-                'insert into votes(contest_round, contest_category, user, masterpiece) values(%s, %s, %s, %s)',
-                (current_round_id, category_id, user.id, masterpiece_id))
-
-    next_category_id = form['next_category'].value if 'next_category' in form else None
-    if 'return' in form:
-        next_category_id = form['previous_category'].value if 'previous_category' in form else None
-    if next_category_id:
-        redirect_parameters['category'] = next_category_id
-    else:
-        selected_page = pages.votes
-
-
-# Page: votes
-
-
-def print_votes(cursor):
+def print_voting_choice(cursor):
     # Should tolerate no <code>user</code>.
 
-    if not current_round_id:
-        print_voting_closed_message(cursor)
-        return
-
-    print_round_timing(cursor)
-    
     print '    <p>'
     print '        Ниже показан ваш выбор по категориям.'
-    print '        Проголосовать последовательно во всех категориях'
-    print '        можно на странице «' + pages.voting.page_link() + '».'
-    print '      <p>'
+    print '      </p>'
 
     has_votes = False
+
     masterpieces = my.sql.get_indexed_named_tuples(cursor, '''
         select
             categories.id category_id,
@@ -836,14 +769,76 @@ def print_votes(cursor):
         print '    </div>'
 
 
-def process_votes(cursor):
+def print_voting(cursor):
+    if not current_round_id:
+        print_voting_closed_message(cursor)
+        return
+
+    print_round_timing(cursor)
+
+    print '    <center><p>'
+
+    for category in available_categories:
+        if category == selected_category:
+            category_line = '<b>' + category.name + '</b>'
+        else:
+            category_line = pages.voting.page_link(category.name, 'category=' + str(category.id))
+        if category.index > 0:
+            category_line = '| ' + category_line
+        print ' '*8 + category_line
+
+    if selected_category:
+        category_line = pages.voting.page_link('выбранное', 'category=choice')
+    else:
+        category_line = '<b>выбранное</b>'
+    print ' '*8 + '| ' + category_line
+
+    print '      </p></center>'
+
+    if selected_category:
+        print_voting_category(cursor)
+    else:
+        print_voting_choice(cursor)
+
+
+def process_voting(cursor):
+    global selected_page
+
     if static.user_actions.vote not in allowed_actions:
         errors.append('Недостаточно прав доступа для голосования.')
         return
     if not current_round_id:
         return
+
     if user and 'abstain_all' in form:
         cursor.execute('delete from votes where contest_round = %s and user = %s', (current_round_id, user.id))
+        redirect_parameters['category'] = 'choice'
+        return
+
+    if 'category' not in form:
+        return
+    category_id = form['category'].value
+
+    if user and 'abstain' in form:
+        cursor.execute(
+            'delete from votes where contest_round = %s and contest_category = %s and user = %s',
+            (current_round_id, category_id, user.id))
+
+    if 'vote' in form_vector_names:
+        if not user:
+            create_user(cursor)
+        for masterpiece_id in form_vector_names['vote']:
+            cursor.execute(
+                'delete from votes where contest_round = %s and contest_category = %s and user = %s',
+                (current_round_id, category_id, user.id))
+            cursor.execute(
+                'insert into votes(contest_round, contest_category, user, masterpiece) values(%s, %s, %s, %s)',
+                (current_round_id, category_id, user.id, masterpiece_id))
+
+    next_category_id = form['next_category'].value if 'next_category' in form else None
+    if 'return' in form:
+        next_category_id = form['previous_category'].value if 'previous_category' in form else None
+    redirect_parameters['category'] = next_category_id if next_category_id else 'choice'
 
 
 # Page: results
@@ -872,10 +867,10 @@ def print_results(cursor):
         print '      </p>'
 
         if not current_round_id:
-            print '    <p><center>'
+            print '    <center><p>'
             print '        Голосование окончено. Результаты последнего голосования приведены на странице'
             print '        «<a class="pagename" href="' + last_url + '">последние</a>».'
-            print '      </center><p>'
+            print '      </p></center>'
             return
     else:
         if static.user_actions.preview_results in allowed_actions:
@@ -886,7 +881,7 @@ def print_results(cursor):
             print '      </p>'
 
         if not current_round_id:
-            print '    <p><center>'
+            print '    <center><p>'
 
             print '        Пока нет результатов.'
             next_results_time = my.sql.get_unique_one(cursor, '''
@@ -898,7 +893,7 @@ def print_results(cursor):
                 print '        <br>'
                 print '        Результаты будут объявлены ' + date2str(next_results_time) + '.'
             
-            print '      </center><p>'
+            print '      </p></center>'
             return
 
     print_round_timing(cursor)
@@ -1343,14 +1338,6 @@ def init_pages():
             print_function = print_voting,
             process_function = process_voting),
         Page(
-            identifier = 'votes',
-            name = 'выбранное',
-            title = 'Выбранное',
-            contest_stage = static.contest_stages.voting,
-            primary_action = static.user_actions.vote,
-            print_function = print_votes,
-            process_function = process_votes),
-        Page(
             identifier = 'results',
             name = 'результаты',
             title = 'Результаты',
@@ -1533,7 +1520,7 @@ def main_with_cursor(cursor):
             print_errors()
 
             if not (user and user.name):
-                print '<p><center>Возможно, вам нужно ' + pages.registration.page_link('зарегистрироваться') + '.</center></p>'
+                print '<center><p>Возможно, вам нужно ' + pages.registration.page_link('зарегистрироваться') + '.</p></center>'
         else:
             errors.append('Доступ с вашей учётной записи заблокирован.')
             print_errors()
