@@ -29,16 +29,20 @@ create procedure contest_rounds_and_stages__check(
 begin
     declare new_contest int;
     declare overlap_count int;
+    declare overlap_round int;
 
     if new_begins >= new_ends then
-        call signal5('Non-positive duration.', 'contest_rounds_and_stages', 'begins, ends');
+        call signal5(
+            concat('Round ', new_round, ' has non-positive duration.'),
+            'contest_rounds_and_stages',
+            'begins, ends');
     end if;
 
     select contest into new_contest
     from contest_rounds
     where id = new_round;
 
-    select count(1) into overlap_count
+    select count(1), max(stages.round) into overlap_count, overlap_round
     from contest_rounds rounds, contest_rounds_and_stages stages
     where
         rounds.contest = new_contest and
@@ -49,7 +53,10 @@ begin
         stages.ends > new_begins;
 
     if overlap_count > 0 then
-        call signal5('Stages overlap.', 'current_and_future_stages', 'begins, ends');
+        call signal5(
+            concat('Rounds ', new_round, ' and ', overlap_round, ' overlap at stage ', new_stage, '.'),
+            'current_and_future_stages',
+            'begins, ends');
     end if;
 end;;
 
