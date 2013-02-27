@@ -81,6 +81,7 @@ create table contest_rounds_and_stages(
     begins datetime not null,
     ends datetime not null,
     primary key(round, stage),
+    unique key(round, stage, ends),
     foreign key(round) references contest_rounds(id),
     foreign key(stage) references contest_stages(id)
 );
