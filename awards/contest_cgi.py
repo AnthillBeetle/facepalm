@@ -677,7 +677,7 @@ def print_voting_closed_message(cursor):
     next_voting_time = my.sql.get_unique_one(cursor, '''
         select begins
         from current_and_future_stages
-        where is_future = True and contest = %s and stage = %s''',
+        where is_future and contest = %s and stage = %s''',
         (static.contest.id, static.contest_stages.voting.id))
     if next_voting_time:
         print '        <br>'
@@ -899,7 +899,7 @@ def print_results(cursor):
             next_results_time = my.sql.get_unique_one(cursor, '''
                 select begins
                 from current_and_future_stages
-                where is_future = True and contest = %s and stage = %s''',
+                where is_future and contest = %s and stage = %s''',
                 (static.contest.id, static.contest_stages.results.id))
             if next_results_time:
                 print '        <br>'

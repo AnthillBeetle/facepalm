@@ -22,13 +22,12 @@ delimiter ;;
 
 
 create procedure contest_rounds_and_stages__check(
+    new_contest int,
     new_round int,
     new_stage int,
     new_begins datetime,
     new_ends datetime)
 begin
-    declare new_contest int;
-    declare overlap_count int;
     declare overlap_round int;
 
     if new_begins >= new_ends then
@@ -38,21 +37,16 @@ begin
             'begins, ends');
     end if;
 
-    select contest into new_contest
-    from contest_rounds
-    where id = new_round;
-
-    select count(1), max(stages.round) into overlap_count, overlap_round
-    from contest_rounds rounds, contest_rounds_and_stages stages
+    select max(round) into overlap_round
+    from contest_rounds_and_stages
     where
-        rounds.contest = new_contest and
-        stages.round = rounds.id and
-        stages.round <> new_round and
-        stages.stage = new_stage and
-        stages.begins < new_ends and
-        stages.ends > new_begins;
+        contest = new_contest and
+        round <> new_round and
+        stage = new_stage and
+        begins < new_ends and
+        ends > new_begins;
 
-    if overlap_count > 0 then
+    if overlap_round is not null then
         call signal5(
             concat('Rounds ', new_round, ' and ', overlap_round, ' overlap at stage ', new_stage, '.'),
             'current_and_future_stages',
@@ -64,10 +58,10 @@ end;;
 create trigger contest_rounds_and_stages__insert_check
 after insert on contest_rounds_and_stages
 for each row
-    call contest_rounds_and_stages__check(new.round, new.stage, new.begins, new.ends);;
+    call contest_rounds_and_stages__check(new.contest, new.round, new.stage, new.begins, new.ends);;
 
 create trigger contest_rounds_and_stages__update_check
 after update on contest_rounds_and_stages
 for each row
-    call contest_rounds_and_stages__check(new.round, new.stage, new.begins, new.ends);;
+    call contest_rounds_and_stages__check(new.contest, new.round, new.stage, new.begins, new.ends);;
 

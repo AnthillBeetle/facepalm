@@ -22,7 +22,7 @@ create view current_rounds as
 
 create view current_and_future_stages as
     select
-        rounds.is_future, rounds.contest, stages.*
+        rounds.is_future, stages.*
     from
         current_and_future_rounds rounds
         inner join contest_rounds_and_stages stages on
