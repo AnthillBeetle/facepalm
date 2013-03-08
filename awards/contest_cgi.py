@@ -126,14 +126,14 @@ def get_current_round_id(cursor, contest_stage):
     return my.sql.get_unique_one(cursor, '''
         select round from contest_rounds_and_stages
         where tense = %s and contest = %s and stage = %s''',
-        (static.tense.current.id, static.contest.id, contest_stage.id))
+        (static.tenses.present.id, static.contest.id, contest_stage.id))
 
 
 def get_stage_next_time(cursor, contest_stage):
     return my.sql.get_unique_one(cursor, '''
         select begins from contest_rounds_and_stages
         where tense = %s and contest = %s and stage = %s''',
-        (static.tense.future.id, static.contest.id, contest_stage.id))
+        (static.tenses.future.id, static.contest.id, contest_stage.id))
 
 
 # Header and footer
@@ -688,7 +688,7 @@ def print_voting_closed_message(cursor):
     print '        Итоги последнего голосования можно найти'
     print '        <a href="' + godville_topic_url + '?page=last">на форуме</a>.'
 
-    next_voting_time = get_stage_next_time(static.contest_stages.voting)
+    next_voting_time = get_stage_next_time(cursor, static.contest_stages.voting)
     if next_voting_time:
         print '        <br>'
         print '        Следующее голосование начнётся ' + date2str(next_voting_time) + '.'
@@ -877,7 +877,7 @@ def print_results(cursor):
             errors.append('Недостаточно прав доступа для просмотра предварительных результатов.')
             print_errors()
             return
-        current_round_id = get_current_round_id(static.contest_stages.voting)
+        current_round_id = get_current_round_id(cursor, static.contest_stages.voting)
         results_table = 'round_results_view'
 
         last_url = script_name + '?page=' + selected_page.identifier
@@ -904,7 +904,7 @@ def print_results(cursor):
             print '    <center><p>'
 
             print '        Пока нет результатов.'
-            next_results_time = get_stage_next_time(static.contest_stages.results)
+            next_results_time = get_stage_next_time(cursor, static.contest_stages.results)
             if next_results_time:
                 print '        <br>'
                 print '        Результаты будут объявлены ' + date2str(next_results_time) + '.'
@@ -1013,7 +1013,7 @@ def merge_user_into(cursor, source, target):
                 source.contest_round = target.contest_round and
                 source.contest_category = target.contest_category;''',
         (source, target))
-    current_voting_round_id = get_current_round_id(static.contest_stages.voting)
+    current_voting_round_id = get_current_round_id(cursor, static.contest_stages.voting)
     cursor.execute('''
         delete from votes
         where
@@ -1401,7 +1401,7 @@ def select_page(cursor):
 
     global current_round_id
     if selected_page.contest_stage:
-        current_round_id = get_current_round_id(selected_page.contest_stage)
+        current_round_id = get_current_round_id(cursor, selected_page.contest_stage)
 
 
 # main
@@ -1464,7 +1464,7 @@ def maint(cursor):
             update contest_rounds_and_stages
             set tense = %s
             where tense = %s and contest = %s and stage = %s''',
-            (static.tenses.current.id, static.tenses.future.id, static.contest.id, stage))
+            (static.tenses.present.id, static.tenses.future.id, static.contest.id, stage))
 
 
 def main_with_cursor(cursor):
