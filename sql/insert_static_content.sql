@@ -71,6 +71,9 @@ insert into contest_stages(priority, identifier, description) values(25, 'review
 insert into contest_stages(priority, identifier, description) values(3, 'voting', 'голосование');
 insert into contest_stages(priority, identifier, description) values(4, 'results', 'вывешивание результатов');
 
+insert into tenses(id, identifier, description) values(0, 'present', 'настоящее');
+insert into tenses(id, identifier, description) values(1, 'future', 'будущее');
+
 set @contest_id = (select id from contests where identifier = 'facepalm');
 insert into contest_categories(contest, is_grand_prix, priority, name, description) values(
     @contest_id,

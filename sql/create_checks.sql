@@ -49,7 +49,7 @@ begin
     if overlap_round is not null then
         call signal5(
             concat('Rounds ', new_round, ' and ', overlap_round, ' overlap at stage ', new_stage, '.'),
-            'current_and_future_stages',
+            'contest_rounds_and_stages',
             'begins, ends');
     end if;
 end;;

@@ -51,6 +51,10 @@ def init(cursor, contest_identifier):
     contest_stages = my.sql.get_indexed_named_tuples(cursor,
         'select * from contest_stages order by priority')
 
+    global tenses
+    tenses = my.sql.get_indexed_named_tuples(cursor,
+        'select * from tenses')
+
     global contest_categories
     contest_categories = my.sql.get_indexed_named_tuples(cursor,
         'select * from contest_categories where contest = %s order by priority',

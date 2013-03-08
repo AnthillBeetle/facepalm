@@ -75,25 +75,24 @@ create table contest_stages(
     identifier varchar(255) unique not null,
     description text not null
 );
+create table tenses(
+    id int not null primary key,
+    identifier varchar(255) unique not null,
+    description text not null
+);
 create table contest_rounds_and_stages(
     contest int not null,
     round int not null,
     stage int not null,
     begins datetime not null,
     ends datetime not null,
+    tense int null,
     primary key(round, stage),
-    unique key(contest, round, stage),
     unique key(contest, stage, ends, round),
+    unique key(tense, contest, stage),
     foreign key(round, contest) references contest_rounds(id, contest),
-    foreign key(stage) references contest_stages(id)
-);
-create table current_and_future_rounds(
-    is_future bool not null,
-    contest int not null,
-    stage int not null,
-    round int not null,
-    primary key(is_future, contest, stage),
-    foreign key(contest, round, stage) references contest_rounds_and_stages(contest, round, stage)
+    foreign key(stage) references contest_stages(id),
+    foreign key(tense) references tenses(id)
 );
 
 create table contests_and_users(
