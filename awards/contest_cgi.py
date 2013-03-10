@@ -900,6 +900,9 @@ def print_results(cursor):
             print '        <a class="pagename" href="' + preview_url + '">предварительные</a>'
             print '      </p>'
 
+        if 'round' in form:
+            current_round_id = int(form['round'].value)
+
         if not current_round_id:
             print '    <center><p>'
 

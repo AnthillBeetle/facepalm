@@ -196,3 +196,13 @@ create table round_results(
 create unique index results_idx on
     round_results(contest_round, contest_category, score desc, registered_score desc, masterpiece);
 
+create table round_winners(
+    contest_round int not null,
+    contest_category int not null,
+    masterpiece int not null,
+    primary key(contest_round, contest_category, masterpiece),
+    foreign key(contest_round) references contest_rounds(id),
+    foreign key(contest_category) references contest_categories(id),
+    foreign key(masterpiece) references masterpieces(id)
+);
+
