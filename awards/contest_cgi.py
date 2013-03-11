@@ -184,7 +184,7 @@ def print_header():
     print '            text-align: justify;'
     #print '            font-family: serif;'
     print '          }'
-    print '        div.announcement {'
+    print '        div.notification {'
     print '            text-align: center;'
     print '            margin: 1ex;'
     print '            padding: 1ex;'
@@ -999,6 +999,7 @@ def process_results(cursor):
 def merge_user_into(cursor, source, target):
     if source == target:
         return
+
     cursor.execute('''
         create temporary table common_votes(
             contest_round int not null,
@@ -1009,7 +1010,9 @@ def merge_user_into(cursor, source, target):
             select
                 source.contest_round,
                 source.contest_category
-            from votes source, votes target
+            from
+                votes source,
+                votes target
             where
                 source.user = %s and
                 target.user = %s and
@@ -1032,8 +1035,33 @@ def merge_user_into(cursor, source, target):
             votes.contest_round <> %s''',
         (target, current_voting_round_id))
     cursor.execute('update votes set user = %s where user = %s', (target, source))
+
     cursor.execute('update nominations set user = %s where user = %s', (target, source))
     cursor.execute('update masterpieces set user = %s where user = %s', (target, source))
+
+    cursor.execute('''
+        create temporary table common_dismissed_notifications(id int not null primary key)''')
+    cursor.execute('''
+        insert into common_dismissed_notifications(id)
+            select
+                source.notification as id
+            from
+                notifications_dismissed_by_users source,
+                notifications_dismissed_by_users target
+            where
+                source.user = %s and
+                target.user = %s and
+                source.notification = target.notification;''',
+        (source, target))
+    cursor.execute('''
+        delete from notifications_dismissed_by_users
+        where
+            user = %s and
+            notification in
+                (select id from common_dismissed_notifications)''',
+        (target,))
+    cursor.execute('update notifications_dismissed_by_users set user = %s where user = %s', (target, source))
+
     cursor.execute('delete from user_registrations where user = %s', (source))
     cursor.execute('delete from users where id = %s', (source,))
 
@@ -1407,6 +1435,44 @@ def select_page(cursor):
         current_round_id = get_current_round_id(cursor, selected_page.contest_stage)
 
 
+# notifications
+
+
+def print_notifications(cursor):
+    if not user:
+        return
+
+    cursor.execute('''
+        select notification, html
+        from notifications_and_contests
+        where
+            contest = %s and
+            notification not in
+                (select notification from notifications_dismissed_by_users where user = %s)
+        order by notification''', (static.contest.id, user.id))
+
+    for notification_id, notification_html in cursor.fetchall():
+        print '    <div class="notification">'
+        print '        ' + notification_html
+        print ('        <input type="submit" class="seamless" style="color: red;"' +
+            ' name="dismiss_notification.' + str(notification_id) + '" value="X">')
+        print '      </div>'
+
+
+def process_notifications(cursor):
+    if not user:
+        return
+
+    if 'dismiss_notification' in form_vector_names:
+        for notification_id in form_vector_names['dismiss_notification']:
+            cursor.execute(
+                'delete from notifications_dismissed_by_users where notification = %s and user = %s',
+                (notification_id, user.id));
+            cursor.execute(
+                'insert into notifications_dismissed_by_users(notification, user) values(%s, %s)',
+                (notification_id, user.id));
+
+
 # main
 
 
@@ -1504,6 +1570,8 @@ def main_with_cursor(cursor):
     select_page(cursor)
 
     if os.environ['REQUEST_METHOD'] == 'POST':
+        process_notifications(cursor)
+
         selected_page.process_function(cursor)
 
         print 'Status: 303 See Other'
@@ -1546,10 +1614,8 @@ def main_with_cursor(cursor):
 
         if errors:
             print_errors()
-        elif static.contest.announcement:
-            print '    <div class="announcement">'
-            print '        ' + static.contest.announcement
-            print '      </div>'
+
+        print_notifications(cursor)
 
         selected_page.print_function(cursor)
 

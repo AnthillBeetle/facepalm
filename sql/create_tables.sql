@@ -60,8 +60,7 @@ create table contests(
     godville_topic_id int unique not null,
     identifier varchar(255) unique not null,
     name varchar(255) unique not null,
-    pagelist_suffix text not null,
-    announcement text not null
+    pagelist_suffix text not null
 );
 create table contest_rounds(
     id int not null auto_increment primary key,
@@ -195,7 +194,6 @@ create table round_results(
 );
 create unique index results_idx on
     round_results(contest_round, contest_category, score desc, registered_score desc, masterpiece);
-
 create table round_winners(
     contest_round int not null,
     contest_category int not null,
@@ -204,5 +202,26 @@ create table round_winners(
     foreign key(contest_round) references contest_rounds(id),
     foreign key(contest_category) references contest_categories(id),
     foreign key(masterpiece) references masterpieces(id)
+);
+
+create table notifications(
+    id int not null auto_increment primary key,
+    added timestamp not null default current_timestamp
+);
+create table notifications_and_contests(
+    notification int not null,
+    contest int not null,
+    html text not null,
+    primary key(notification, contest),
+    foreign key(notification) references notifications(id),
+    foreign key(contest) references contests(id)
+);
+create table notifications_dismissed_by_users(
+    notification int not null,
+    user int not null,
+    added timestamp not null default current_timestamp,
+    primary key(notification, user),
+    foreign key(notification) references notifications(id),
+    foreign key(user) references users(id)
 );
 
