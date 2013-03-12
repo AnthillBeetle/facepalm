@@ -21,16 +21,18 @@ create function get_contest_category() returns integer no sql return @current_co
 
 create view votes_parametrized as
     select
-        votes.user,
-        votes.masterpiece
+        contest_category,
+        user,
+        masterpiece
     from
         votes
     where
-        votes.contest_round = get_contest_round() and
-        votes.contest_category = get_contest_category();
+        contest_round = get_contest_round() and
+        (contest_category = get_contest_category() or get_contest_category() is null);
 
 create view votes_user_parametrized as
     select
+        votes.contest_category,
         votes.masterpiece,
         users.name,
         users.remote_address
@@ -42,33 +44,38 @@ create view votes_user_parametrized as
 
 create view vote_multiples_parametrized as
     select
+        contest_category,
         remote_address,
         count(1) as multiple_count
     from
-        votes_user_parametrized votes
+        votes_user_parametrized
     where
         name is null
     group by
+        contest_category,
         remote_address;
 
 create view votes_info_parametrized as
     select
+        votes.contest_category,
         votes.masterpiece,
-        votes.name,
         votes.remote_address,
         vote_multiples.multiple_count
     from
         votes_user_parametrized votes left join vote_multiples_parametrized vote_multiples on
+            votes.contest_category = vote_multiples.contest_category and
             votes.remote_address = vote_multiples.remote_address;
 
 create view round_results_view_parametrized as
     select
+        contest_category,
         masterpiece,
-        count(name)*2 as registered_score,
-        sum(if(name is null, 1.0/multiple_count, 2)) as score
+        count(if(multiple_count, null, 1))*2 as registered_score,
+        sum(ifnull(1.0 / multiple_count, 2)) as score
     from
         votes_info_parametrized
     group by
+        contest_category,
         masterpiece;
 
 

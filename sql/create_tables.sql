@@ -30,8 +30,9 @@ create table users(
     remote_address varchar(255) not null,
     name varchar(255) unique default null, -- godville.net name, null means anonymous
     password varchar(255) not null,
-    foreign key(role) references user_roles(id),
-    key(remote_address, name, created)
+    unique key(remote_address, id),
+    unique key(remote_address, name, created),
+    foreign key(role) references user_roles(id)
 );
 create table user_registrations(
     user int not null primary key,
