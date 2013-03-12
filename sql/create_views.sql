@@ -16,6 +16,65 @@
 --- along with Facepalm web-engine. If not, see <http://www.gnu.org/licenses/>.
 
 
+create function get_contest_round() returns integer no sql return @current_contest_round;
+create function get_contest_category() returns integer no sql return @current_contest_category;
+
+create view votes_parametrized as
+    select
+        votes.user,
+        votes.masterpiece
+    from
+        votes
+    where
+        votes.contest_round = get_contest_round() and
+        votes.contest_category = get_contest_category();
+
+create view votes_user_parametrized as
+    select
+        votes.masterpiece,
+        users.name,
+        users.remote_address
+    from
+        votes_parametrized votes,
+        users
+    where
+        votes.user = users.id;
+
+create view vote_multiples_parametrized as
+    select
+        remote_address,
+        count(1) as multiple_count
+    from
+        votes_user_parametrized votes
+    where
+        name is null
+    group by
+        remote_address;
+
+create view votes_info_parametrized as
+    select
+        votes.masterpiece,
+        votes.name,
+        votes.remote_address,
+        vote_multiples.multiple_count
+    from
+        votes_user_parametrized votes left join vote_multiples_parametrized vote_multiples on
+            votes.remote_address = vote_multiples.remote_address;
+
+create view round_results_view_parametrized as
+    select
+        masterpiece,
+        count(name)*2 as registered_score,
+        sum(if(name is null, 1.0/multiple_count, 2)) as score
+    from
+        votes_info_parametrized
+    group by
+        masterpiece;
+
+
+---
+
+
 create view vote_multiples as
     select
         votes.contest_round,
@@ -53,6 +112,10 @@ create view round_results_view as
         masterpiece,
         count(name)*2 registered_score,
         sum(if(name is null, 1.0/multiple_count, 2)) score
-    from votes_info
-    group by contest_round, contest_category, masterpiece;
+    from
+        votes_info
+    group by
+        contest_round,
+        contest_category,
+        masterpiece;
 

@@ -869,7 +869,8 @@ def process_voting(cursor):
 def print_results(cursor):
     global current_round_id
 
-    results_table = 'round_results'
+    results_query = '(select * from round_results where contest_round = %s and contest_category = %s) results'
+    parameters_in_variables = False
 
     preview = 'round' in form and form['round'].value == 'running'
     if preview:
@@ -878,7 +879,12 @@ def print_results(cursor):
             print_errors()
             return
         current_round_id = get_current_round_id(cursor, static.contest_stages.voting)
-        results_table = 'round_results_view'
+
+        if 'method' in form and form['method'].value == 'old':
+            results_query = '(select * from round_results_view where contest_round = %s and contest_category = %s) results'
+        else:
+            results_query = 'round_results_view_parametrized results'
+            parameters_in_variables = True
 
         last_url = script_name + '?page=' + selected_page.identifier
         print '    <p style="text-align: center;">'
@@ -931,9 +937,14 @@ def print_results(cursor):
         print '    <div style="padding: 1ex;">'
         print '        <b>' + escape(category.name) + '</b>'
 
-        total_score = my.sql.get_unique_one(cursor,
-            'select sum(score) from ' + results_table + ' where contest_round = %s and contest_category = %s',
-            (current_round_id, category.id))
+        query_parameters = (current_round_id, category.id)
+        if parameters_in_variables:
+            cursor.execute(
+                'set @current_contest_round = %s, @current_contest_category = %s',
+                query_parameters)
+            query_parameters = ()
+
+        total_score = my.sql.get_unique_one(cursor, 'select sum(score) from ' + results_query, query_parameters)
 
         if not total_score:
             print '        <div style="padding-left: 4ex; padding-top: 1ex; padding-bottom: 1ex;">'
@@ -950,12 +961,10 @@ def print_results(cursor):
                 masterpieces.*,
                 users.name user_name
             from
-                ''' + results_table + ''' results,
+                ''' + results_query + ''',
                 masterpieces,
                 users
             where
-                results.contest_round = %s and
-                results.contest_category = %s and
                 results.masterpiece = masterpieces.id and
                 masterpieces.user = users.id
             order by
@@ -964,7 +973,7 @@ def print_results(cursor):
                 masterpieces.added,
                 masterpieces.id
             limit 3''',
-            (current_round_id, category.id))
+            query_parameters)
         for masterpiece in masterpieces:
             if not masterpiece.score:
                 continue
