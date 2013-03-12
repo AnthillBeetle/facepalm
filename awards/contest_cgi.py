@@ -713,9 +713,6 @@ def print_voting_category(cursor):
 
     print '    <input type="hidden" name="category" value="' + str(selected_category.id) + '">'
     if 'one_off' not in form:
-        if selected_category.index - 1 >= 0:
-            previous_category = available_categories[selected_category.index - 1]
-            print '    <input type="hidden" name="previous_category" value="' + str(previous_category.id) + '">'
         if selected_category.index + 1 < len(available_categories):
             next_category = available_categories[selected_category.index + 1]
             print '    <input type="hidden" name="next_category" value="' + str(next_category.id) + '">'
@@ -840,11 +837,14 @@ def process_voting(cursor):
     if 'category' not in form:
         return
     category_id = form['category'].value
+    redirect_parameters['category'] = category_id
+    has_voted = False
 
     if user and 'abstain' in form:
         cursor.execute(
             'delete from votes where contest_round = %s and contest_category = %s and user = %s',
             (current_round_id, category_id, user.id))
+        has_voted = True
 
     if 'vote' in form_vector_names:
         if not user:
@@ -856,11 +856,10 @@ def process_voting(cursor):
             cursor.execute(
                 'insert into votes(contest_round, contest_category, user, masterpiece) values(%s, %s, %s, %s)',
                 (current_round_id, category_id, user.id, masterpiece_id))
+        has_voted = True
 
-    next_category_id = form['next_category'].value if 'next_category' in form else None
-    if 'return' in form:
-        next_category_id = form['previous_category'].value if 'previous_category' in form else None
-    redirect_parameters['category'] = next_category_id if next_category_id else 'choice'
+    if has_voted:
+        redirect_parameters['category'] = form['next_category'].value if 'next_category' in form else 'choice'
 
 
 # Page: results

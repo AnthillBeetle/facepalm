@@ -59,6 +59,7 @@ create view votes_info_parametrized as
     select
         votes.contest_category,
         votes.masterpiece,
+        votes.name,
         votes.remote_address,
         vote_multiples.multiple_count
     from
@@ -70,8 +71,8 @@ create view round_results_view_parametrized as
     select
         contest_category,
         masterpiece,
-        count(if(multiple_count, null, 1))*2 as registered_score,
-        sum(ifnull(1.0 / multiple_count, 2)) as score
+        count(name)*2 registered_score,
+        sum(if(name is null, 1.0/multiple_count, 2)) score
     from
         votes_info_parametrized
     group by
