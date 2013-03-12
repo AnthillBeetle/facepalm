@@ -127,3 +127,55 @@ create view round_results_view as
         contest_category,
         masterpiece;
 
+
+----
+
+
+create view round_max_scores as
+    select
+        contest_round,
+        contest_category,
+        max(score) as score
+    from
+        round_results
+    group by
+        contest_round,
+        contest_category;
+
+create view round_max_masterpieces as
+    select
+        results.contest_round,
+        results.contest_category,
+        results.masterpiece
+    from
+        round_results results,
+        round_max_scores max_scores
+    where
+        results.contest_round = max_scores.contest_round and
+        results.contest_category = max_scores.contest_category and
+        results.score = max_scores.score;
+
+create view round_max_multiples as
+    select
+        contest_round,
+        contest_category,
+        count(1) as multiple_count
+    from
+        round_max_masterpieces
+    group by
+        contest_round,
+        contest_category;
+
+create view round_winners_view as
+    select
+        results.contest_round,
+        results.contest_category,
+        results.masterpiece
+    from
+        round_max_masterpieces results,
+        round_max_multiples multiples
+    where
+        results.contest_round = multiples.contest_round and
+        results.contest_category = multiples.contest_category and
+        multiples.multiple_count <= 2;
+

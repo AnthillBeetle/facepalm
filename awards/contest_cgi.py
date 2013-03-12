@@ -1530,6 +1530,13 @@ def maint(cursor):
                 insert into round_results
                     select * from round_results_view where contest_round = %s''',
                 (round,))
+            cursor.execute(
+                'delete from round_winners where contest_round = %s',
+                (round,))
+            cursor.execute('''
+                insert into round_winners
+                    select * from round_winners_view where contest_round = %s''',
+                (round,))
 
     cursor.execute('''
         select stage, round
