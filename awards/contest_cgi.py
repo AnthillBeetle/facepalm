@@ -319,12 +319,24 @@ def print_login_check_form():
 # Stage timing
 
 
-def date2str(date, ):
+def datetime2str(date):
+    return date.strftime('%H:%M %d.%m.%Y')
+
+
+def datetime2endstr(date, __one_second = datetime.timedelta(seconds = 1)):
+    if date.strftime('%H:%M') == '00:00':
+        date -= __one_second
+        return '24:00 ' + date.strftime('%d.%m.%Y')
+    return date.strftime('%H:%M %d.%m.%Y')
+
+
+def date2str(date):
     return date.strftime('%d.%m.%Y')
 
 
-def enddate2str(date, __one_second = datetime.timedelta(seconds = 1)):
-    date -= __one_second
+def date2endstr(date, __one_second = datetime.timedelta(seconds = 1)):
+    if date.strftime('%H:%M') == '00:00':
+        date -= __one_second
     return date2str(date)
 
 
@@ -336,26 +348,32 @@ def print_round_timing(cursor):
         where round = %s''',
         (current_round_id,))
     stages = static.contest_stages
-    if stages.publishing.id in current_stages:
-        publishing = current_stages[stages.publishing.id]
-        if publishing.begins and publishing.ends:
-            if selected_page == pages.nomination:
-                print '        Номинирование креатива, опубликованного'
-            elif selected_page == pages.review:
-                print '        Рецензирование креатива, опубликованного'
-            elif selected_page == pages.voting:
-                print '        Голосование за креатив, опубликованный'
+    if stages.nomination.id in current_stages:
+        nomination = current_stages[stages.nomination.id]
+        if selected_page == pages.nomination:
+            print '        Номинирование креатива за период'
+        elif selected_page == pages.review:
+            print '        Рецензирование креатива, номинированного'
+        elif selected_page == pages.voting:
+            print '        Голосование за креатив, номинированного'
+        elif selected_page == pages.results:
+            print '        Результаты голосования за креатив, номинированный'
+        print '        с&nbsp;' + date2str(nomination.begins) +' по&nbsp;' + date2endstr(nomination.ends) + '.<br>'
+    else:
+        round_description = my.sql.get_unique_one(cursor, 'select description from contest_rounds where id = %s', (current_round_id,))
+        if round_description:
+            if selected_page == pages.voting:
+                print '        Голосование за ' + round_description + '.<br>'
             elif selected_page == pages.results:
-                print '        Результаты голосования за креатив, опубликованный'
-            print '        с&nbsp;' + date2str(publishing.begins) +' по&nbsp;' + enddate2str(publishing.ends) + '.'
+                print '        Результаты голосования за ' + round_description + '.<br>'
     if stages.voting.id in current_stages:
         voting = current_stages[stages.voting.id]
         if selected_page in (pages.nomination, pages.review):
             verb = 'началось' if voting.begins <= static.start_time else 'начнётся'
-            print '        Голосование&nbsp;' + verb + '&nbsp;' + date2str(voting.begins) + '.'
+            print '        Голосование&nbsp;' + verb + ' в&nbsp;' + datetime2str(voting.begins) + '.'
         if selected_page in (pages.voting, pages.results):
             verb = 'окончилось' if voting.ends <= static.start_time else 'окончится'
-            print '        Голосование&nbsp;' + verb + '&nbsp;' + enddate2str(voting.ends) + '.'
+            print '        Голосование&nbsp;' + verb + ' в&nbsp;' + datetime2endstr(voting.ends) + '.'
     print '      </p>'
 
 
@@ -691,7 +709,7 @@ def print_voting_closed_message(cursor):
     next_voting_time = get_stage_next_time(cursor, static.contest_stages.voting)
     if next_voting_time:
         print '        <br>'
-        print '        Следующее голосование начнётся ' + date2str(next_voting_time) + '.'
+        print '        Следующее голосование начнётся в&nbsp;' + datetime2str(next_voting_time) + '.'
 
     print '      <p></center>'
 
@@ -915,7 +933,7 @@ def print_results(cursor):
             next_results_time = get_stage_next_time(cursor, static.contest_stages.results)
             if next_results_time:
                 print '        <br>'
-                print '        Результаты будут объявлены ' + date2str(next_results_time) + '.'
+                print '        Результаты будут объявлены в&nbsp;' + datetime2str(next_results_time) + '.'
             
             print '      </p></center>'
             return
