@@ -319,25 +319,60 @@ def print_login_check_form():
 # Stage timing
 
 
-def datetime2str(date):
-    return date.strftime('%H:%M %d.%m.%Y')
+def date2str(
+        the_date,
+        append_relative_day = False,
+        append_when_weekday = False,
+        __relative_day_names = {-2: 'позавчера', -1: 'вчера', 0: 'сегодня', 1: 'завтра', 2: 'послезавтра'},
+        __weekday_when_names = ['в понедельник', 'во вторник', 'в среду', 'в четверг', 'в пятницу', 'в субботу', 'в воскресенье']
+    ):
+    date_string = the_date.strftime('%d.%m.%Y')
+    suffix = None
+    if append_relative_day:
+        difference_in_days = (the_date.date() - datetime.date.today()).days
+        if difference_in_days in __relative_day_names:
+            suffix = __relative_day_names[difference_in_days]
+    if append_when_weekday and not suffix:
+        difference_in_days = (the_date.date() - datetime.date.today()).days
+        if abs(difference_in_days) <= 5:
+            suffix = __weekday_when_names[the_date.weekday()]
+    if suffix:
+        date_string += ' (' + suffix + ')'
+    return date_string
 
 
-def datetime2endstr(date, __one_second = datetime.timedelta(seconds = 1)):
-    if date.strftime('%H:%M') == '00:00':
-        date -= __one_second
-        return '24:00 ' + date.strftime('%d.%m.%Y')
-    return date.strftime('%H:%M %d.%m.%Y')
+def date2endstr(
+        the_date,
+        append_relative_day = False,
+        append_when_weekday = False,
+        __one_second = datetime.timedelta(seconds = 1)
+    ):
+    return date2str(the_date - __one_second,
+        append_relative_day = append_relative_day,
+        append_when_weekday = append_when_weekday)
 
 
-def date2str(date):
-    return date.strftime('%d.%m.%Y')
+def datetime2str(
+        the_datetime,
+        append_relative_day = False,
+        append_when_weekday = False
+    ):
+    return the_datetime.strftime('%H:%M ') + date2str(the_datetime,
+        append_relative_day = append_relative_day,
+        append_when_weekday = append_when_weekday)
 
 
-def date2endstr(date, __one_second = datetime.timedelta(seconds = 1)):
-    if date.strftime('%H:%M') == '00:00':
-        date -= __one_second
-    return date2str(date)
+def datetime2endstr(
+        the_datetime,
+        append_relative_day = False,
+        append_when_weekday = False
+    ):
+    time_string = the_datetime.strftime('%H:%M ')
+    if time_string == '00:00 ':
+        time_string = '24:00 '
+    return time_string + date2endstr(the_datetime,
+        append_relative_day = append_relative_day,
+        append_when_weekday = append_when_weekday)
 
 
 def print_round_timing(cursor):
@@ -370,10 +405,10 @@ def print_round_timing(cursor):
         voting = current_stages[stages.voting.id]
         if selected_page in (pages.nomination, pages.review):
             verb = 'началось' if voting.begins <= static.start_time else 'начнётся'
-            print '        Голосование&nbsp;' + verb + ' в&nbsp;' + datetime2str(voting.begins) + '.'
+            print '        Голосование&nbsp;' + verb + ' в&nbsp;' + datetime2str(voting.begins, append_relative_day = True) + '.'
         if selected_page in (pages.voting, pages.results):
             verb = 'окончилось' if voting.ends <= static.start_time else 'окончится'
-            print '        Голосование&nbsp;' + verb + ' в&nbsp;' + datetime2endstr(voting.ends) + '.'
+            print '        Голосование&nbsp;' + verb + ' в&nbsp;' + datetime2endstr(voting.ends, append_relative_day = True) + '.'
     print '      </p>'
 
 
@@ -709,7 +744,7 @@ def print_voting_closed_message(cursor):
     next_voting_time = get_stage_next_time(cursor, static.contest_stages.voting)
     if next_voting_time:
         print '        <br>'
-        print '        Следующее голосование начнётся в&nbsp;' + datetime2str(next_voting_time) + '.'
+        print '        Следующее голосование начнётся в&nbsp;' + datetime2str(next_voting_time, append_relative_day = True) + '.'
 
     print '      <p></center>'
 
@@ -933,7 +968,7 @@ def print_results(cursor):
             next_results_time = get_stage_next_time(cursor, static.contest_stages.results)
             if next_results_time:
                 print '        <br>'
-                print '        Результаты будут объявлены в&nbsp;' + datetime2str(next_results_time) + '.'
+                print '        Результаты будут объявлены в&nbsp;' + datetime2str(next_results_time, append_relative_day = True) + '.'
             
             print '      </p></center>'
             return
