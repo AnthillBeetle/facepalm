@@ -329,11 +329,11 @@ def date2str(
     date_string = the_date.strftime('%d.%m.%Y')
     suffix = None
     if append_relative_day:
-        difference_in_days = (the_date.date() - datetime.date.today()).days
+        difference_in_days = (the_date.date() - static.start_time.date()).days
         if difference_in_days in __relative_day_names:
             suffix = __relative_day_names[difference_in_days]
     if append_when_weekday and not suffix:
-        difference_in_days = (the_date.date() - datetime.date.today()).days
+        difference_in_days = (the_date.date() - static.start_time.date()).days
         if abs(difference_in_days) <= 5:
             suffix = __weekday_when_names[the_date.weekday()]
     if suffix:
