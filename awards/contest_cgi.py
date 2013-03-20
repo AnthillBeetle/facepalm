@@ -323,7 +323,13 @@ def date2str(
         the_date,
         append_relative_day = False,
         append_when_weekday = False,
-        __relative_day_names = {-2: 'позавчера', -1: 'вчера', 0: 'сегодня', 1: 'завтра', 2: 'послезавтра'},
+        __relative_day_names = {
+#            -2: 'позавчера',
+            -1: 'вчера',
+            0: 'сегодня',
+            1: 'завтра',
+#            2: 'послезавтра'
+        },
         __weekday_when_names = ['в понедельник', 'во вторник', 'в среду', 'в четверг', 'в пятницу', 'в субботу', 'в воскресенье']
     ):
     date_string = the_date.strftime('%d.%m.%Y')
@@ -334,7 +340,7 @@ def date2str(
             suffix = __relative_day_names[difference_in_days]
     if append_when_weekday and not suffix:
         difference_in_days = (the_date.date() - static.start_time.date()).days
-        if abs(difference_in_days) <= 5:
+        if abs(difference_in_days) <= 4:
             suffix = __weekday_when_names[the_date.weekday()]
     if suffix:
         date_string += ' (' + suffix + ')'
@@ -398,17 +404,17 @@ def print_round_timing(cursor):
         round_description = my.sql.get_unique_one(cursor, 'select description from contest_rounds where id = %s', (current_round_id,))
         if round_description:
             if selected_page == pages.voting:
-                print '        Голосование за ' + round_description + '.<br>'
+                print '        Голосование за ' + escape(round_description) + '.<br>'
             elif selected_page == pages.results:
-                print '        Результаты голосования за ' + round_description + '.<br>'
+                print '        Результаты голосования за ' + escape(round_description) + '.<br>'
     if stages.voting.id in current_stages:
         voting = current_stages[stages.voting.id]
         if selected_page in (pages.nomination, pages.review):
             verb = 'началось' if voting.begins <= static.start_time else 'начнётся'
-            print '        Голосование&nbsp;' + verb + ' в&nbsp;' + datetime2str(voting.begins, append_relative_day = True) + '.'
+            print '        Голосование&nbsp;' + verb + ' в&nbsp;' + datetime2str(voting.begins, append_relative_day = True, append_when_weekday = True) + '.'
         if selected_page in (pages.voting, pages.results):
             verb = 'окончилось' if voting.ends <= static.start_time else 'окончится'
-            print '        Голосование&nbsp;' + verb + ' в&nbsp;' + datetime2endstr(voting.ends, append_relative_day = True) + '.'
+            print '        Голосование&nbsp;' + verb + ' в&nbsp;' + datetime2endstr(voting.ends, append_relative_day = True, append_when_weekday = True) + '.'
     print '      </p>'
 
 
@@ -744,7 +750,7 @@ def print_voting_closed_message(cursor):
     next_voting_time = get_stage_next_time(cursor, static.contest_stages.voting)
     if next_voting_time:
         print '        <br>'
-        print '        Следующее голосование начнётся в&nbsp;' + datetime2str(next_voting_time, append_relative_day = True) + '.'
+        print '        Следующее голосование начнётся в&nbsp;' + datetime2str(next_voting_time, append_relative_day = True, append_when_weekday = True) + '.'
 
     print '      <p></center>'
 
@@ -968,7 +974,7 @@ def print_results(cursor):
             next_results_time = get_stage_next_time(cursor, static.contest_stages.results)
             if next_results_time:
                 print '        <br>'
-                print '        Результаты будут объявлены в&nbsp;' + datetime2str(next_results_time, append_relative_day = True) + '.'
+                print '        Результаты будут объявлены в&nbsp;' + datetime2str(next_results_time, append_relative_day = True, append_when_weekday = True) + '.'
             
             print '      </p></center>'
             return
@@ -1335,7 +1341,7 @@ def print_profile(cursor):
     allowed_action_names = [action.description for action in allowed_actions]
     allowed_action_names.sort()
     print '      </p>'
-    print '        Разрешённые действия: ' + ', '.join(allowed_action_names) + '.'
+    print '        Разрешённые действия: ' + escape(', '.join(allowed_action_names)) + '.'
     print '      </p>'
     print '    <p>'
     print '        <input type="submit" name="logout" value="Выйти">'
