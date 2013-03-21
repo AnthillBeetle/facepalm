@@ -61,6 +61,7 @@ create table contests(
     godville_topic_id int unique not null,
     identifier varchar(255) unique not null,
     name varchar(255) unique not null,
+    prix_character_html varchar(255) not null,
     pagelist_suffix text not null
 );
 create table contest_rounds(

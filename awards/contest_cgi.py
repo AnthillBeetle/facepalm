@@ -98,7 +98,7 @@ def print_masterpiece_for_forum(masterpiece):
         print
 
 
-def print_masterpiece(spacing, masterpiece, final_line_suffix_html = None):
+def print_masterpiece(spacing, masterpiece):
     section_prefix = static.ideabox_sections[masterpiece.ideabox_section].prefix
     stage_clarification = static.ideabox_stages[masterpiece.ideabox_stage].clarification
     ideabox_note = ''
@@ -122,8 +122,6 @@ def print_masterpiece(spacing, masterpiece, final_line_suffix_html = None):
         print spacing + '    <i>' + multiline_escape(masterpiece.user_comment, spacing) + '</i>'
     if 'user_name' in masterpiece._fields:
         print spacing + '    (' + escape(masterpiece.user_name) + ')'
-    if final_line_suffix_html:
-        print spacing + '    ' + final_line_suffix_html
     print spacing + '  </div>'
 
 
@@ -1019,6 +1017,7 @@ def print_results(cursor):
             continue
  
         total_score = float(total_score)
+        last_score = 0
         masterpieces = my.sql.get_indexed_named_tuples(cursor, '''
             select
                 results.registered_score,
@@ -1043,6 +1042,12 @@ def print_results(cursor):
             if not masterpiece.score:
                 continue
 
+            if preview:
+                is_winner = (masterpiece.score >= last_score)
+                last_score = masterpiece.score
+            else:
+                is_winner = masterpiece.is_winner
+
             registered_percentage = str(int(round(100*masterpiece.registered_score/total_score)))
             anonymous_score = float(masterpiece.score) - masterpiece.registered_score
             anonymous_percentage = str(int(round(100*anonymous_score/total_score)))
@@ -1053,10 +1058,12 @@ def print_results(cursor):
                 print '                <td bgcolor="blue" width="' + registered_percentage + '%" align="center"><font color="white">' + str(int(round(masterpiece.registered_score))) + '</font></td>'
             if anonymous_percentage != '0':
                 print '                <td bgcolor="lightblue" width="' + anonymous_percentage + '%" align="center"><font color="black">' + str(round(anonymous_score, 1)) + '</font></td>'
+            if is_winner:
+                print '                <td><b>' + static.contest.prix_character_html + '</b></td>'
             print '                <td></td>'
             print '              </tr></table>'
 
-            print_masterpiece(' '*12, masterpiece, final_line_suffix_html = '<b>棕</b>' if masterpiece.is_winner else None)
+            print_masterpiece(' '*12, masterpiece)
 
             print '          </div>'
 
