@@ -748,7 +748,10 @@ def print_voting_closed_message(cursor):
     godville_topic_url = 'http://godville.net/forums/show_topic/' + str(static.contest.godville_topic_id)
     print '    <center><p>'
 
-    print '        Голосование окончено.'
+    if get_current_round_id(cursor, static.contest_stages.results):
+        print '        Голосование окончено, результаты приведены на странице «' + pages.results.page_link('результаты') + '».<br>'
+    else:
+        print '        Нет доступных голосований.'
 
     next_voting_time = get_stage_next_time(cursor, static.contest_stages.voting)
     if next_voting_time:
