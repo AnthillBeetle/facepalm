@@ -1017,7 +1017,6 @@ def print_results(cursor):
             continue
  
         total_score = float(total_score)
-        last_score = 0
         masterpieces = my.sql.get_indexed_named_tuples(cursor, '''
             select
                 results.registered_score,
@@ -1038,15 +1037,16 @@ def print_results(cursor):
                 masterpieces.id
             limit 3''',
             results_query_parameters + (current_round_id, category.id))
+        if preview:
+            masterpieces_list = list(masterpieces)
+            winning_score = masterpieces_list[0].score
+            if len(masterpieces_list) >= 3 and masterpieces_list[2].score == winning_score:
+                winning_score = total_score
         for masterpiece in masterpieces:
             if not masterpiece.score:
                 continue
 
-            if preview:
-                is_winner = (masterpiece.score >= last_score)
-                last_score = masterpiece.score
-            else:
-                is_winner = masterpiece.is_winner
+            is_winner = (masterpiece.score == winning_score) if preview else masterpiece.is_winner
 
             registered_percentage = str(int(round(100*masterpiece.registered_score/total_score)))
             anonymous_score = float(masterpiece.score) - masterpiece.registered_score
