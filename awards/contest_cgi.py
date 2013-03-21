@@ -98,7 +98,7 @@ def print_masterpiece_for_forum(masterpiece):
         print
 
 
-def print_masterpiece(spacing, masterpiece):
+def print_masterpiece(spacing, masterpiece, final_line_suffix_html = None):
     section_prefix = static.ideabox_sections[masterpiece.ideabox_section].prefix
     stage_clarification = static.ideabox_stages[masterpiece.ideabox_stage].clarification
     ideabox_note = ''
@@ -113,12 +113,17 @@ def print_masterpiece(spacing, masterpiece):
 
     print spacing + '<div class="content">' + ideabox_note + multiline_escape(masterpiece.content, spacing) + '</div>'
     if masterpiece.authors_explanation:
-        print spacing + '<div class="content"><i>Пояснение:</i> ' + multiline_escape(masterpiece.authors_explanation, spacing) + '</div>'
+        print spacing + '<div class="content">'
+        print spacing + '    <i>Пояснение:</i>'
+        print spacing + '    ' + multiline_escape(masterpiece.authors_explanation, spacing)
+        print spacing + '  </div>'
     print spacing + '<div>'
     if masterpiece.user_comment:
         print spacing + '    <i>' + multiline_escape(masterpiece.user_comment, spacing) + '</i>'
     if 'user_name' in masterpiece._fields:
         print spacing + '    (' + escape(masterpiece.user_name) + ')'
+    if final_line_suffix_html:
+        print spacing + '    ' + final_line_suffix_html
     print spacing + '  </div>'
 
 
@@ -461,12 +466,14 @@ def process_entrance(cursor):
 def print_nominated_masterpiece(masterpiece, masterpiece_nomination_names):
     print '    <div style="padding: 1ex;">'
     print_masterpiece(' '*8, masterpiece)
-    print '        «' + '», «'.join(masterpiece_nomination_names[masterpiece.id]) + '»'
+    print '        <div>'
+    print '            «' + '», «'.join(masterpiece_nomination_names[masterpiece.id]) + '»'
     if 'nomination_date' in masterpiece._fields:
-        print masterpiece.nomination_date.strftime('%d.%m.%Y&nbsp;%H:%M')
-    print ('        <input type="submit" class="seamless" style="color: red;" name="remove.' + str(masterpiece.id) +
+        print '            ' + masterpiece.nomination_date.strftime('%d.%m.%Y&nbsp;%H:%M')
+    print ('            <input type="submit" class="seamless" style="color: red;" name="remove.' + str(masterpiece.id) +
         '" value="X" onclick="return confirm(\x27Действительно удалить номинированный креатив?\x27)">')
-    print '      </div style="padding: 1ex;">'
+    print '          </div>'
+    print '      </div>'
 
 
 def print_nomination(cursor):
@@ -927,8 +934,8 @@ def process_voting(cursor):
 def print_results(cursor):
     global current_round_id
 
-    results_query = '(select * from round_results where contest_round = %s and contest_category = %s) results'
-    parameters_in_variables = False
+    results_query = '(select * from round_results where contest_round = %s and contest_category = %s)'
+    results_query_uses_variables = False
 
     preview = 'round' in form and form['round'].value == 'running'
     if preview:
@@ -939,10 +946,10 @@ def print_results(cursor):
         current_round_id = get_current_round_id(cursor, static.contest_stages.voting)
 
         if 'method' in form and form['method'].value == 'old':
-            results_query = '(select * from round_results_view where contest_round = %s and contest_category = %s) results'
+            results_query = '(select * from round_results_view where contest_round = %s and contest_category = %s)'
         else:
-            results_query = 'round_results_view_parametrized results'
-            parameters_in_variables = True
+            results_query = 'round_results_view_parametrized'
+            results_query_uses_variables = True
 
         last_url = script_name + '?page=' + selected_page.identifier
         print '    <p style="text-align: center;">'
@@ -995,14 +1002,14 @@ def print_results(cursor):
         print '    <div style="padding: 1ex;">'
         print '        <b>' + escape(category.name) + '</b>'
 
-        query_parameters = (current_round_id, category.id)
-        if parameters_in_variables:
+        results_query_parameters = (current_round_id, category.id)
+        if results_query_uses_variables:
             cursor.execute(
                 'set @current_contest_round = %s, @current_contest_category = %s',
-                query_parameters)
-            query_parameters = ()
+                results_query_parameters)
+            results_query_parameters = ()
 
-        total_score = my.sql.get_unique_one(cursor, 'select sum(score) from ' + results_query, query_parameters)
+        total_score = my.sql.get_unique_one(cursor, 'select sum(score) from ' + results_query + ' results', results_query_parameters)
 
         if not total_score:
             print '        <div style="padding-left: 4ex; padding-top: 1ex; padding-bottom: 1ex;">'
@@ -1015,23 +1022,23 @@ def print_results(cursor):
         masterpieces = my.sql.get_indexed_named_tuples(cursor, '''
             select
                 results.registered_score,
-                results.score score,
+                results.score,
                 masterpieces.*,
-                users.name user_name
+                users.name as user_name,
+                winners.masterpiece is not null as is_winner
             from
-                ''' + results_query + ''',
-                masterpieces,
-                users
-            where
-                results.masterpiece = masterpieces.id and
-                masterpieces.user = users.id
+                ''' + results_query + ''' results
+                inner join masterpieces on results.masterpiece = masterpieces.id
+                inner join users on masterpieces.user = users.id
+                left join (select * from round_winners where contest_round = %s and contest_category = %s) winners
+                    on results.masterpiece = winners.masterpiece
             order by
                 results.score desc,
                 results.registered_score desc,
                 masterpieces.added,
                 masterpieces.id
             limit 3''',
-            query_parameters)
+            results_query_parameters + (current_round_id, category.id))
         for masterpiece in masterpieces:
             if not masterpiece.score:
                 continue
@@ -1049,7 +1056,7 @@ def print_results(cursor):
             print '                <td></td>'
             print '              </tr></table>'
 
-            print_masterpiece(' '*12, masterpiece)
+            print_masterpiece(' '*12, masterpiece, final_line_suffix_html = '<b>棕</b>' if masterpiece.is_winner else None)
 
             print '          </div>'
 
