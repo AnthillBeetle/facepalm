@@ -749,13 +749,14 @@ def print_voting_closed_message(cursor):
     print '    <center><p>'
 
     print '        Голосование окончено.'
-    print '        Итоги последнего голосования можно найти'
-    print '        <a href="' + godville_topic_url + '?page=last">на форуме</a>.'
 
     next_voting_time = get_stage_next_time(cursor, static.contest_stages.voting)
     if next_voting_time:
-        print '        <br>'
-        print '        Следующее голосование начнётся в&nbsp;' + datetime2str(next_voting_time, append_relative_day = True, append_when_weekday = True) + '.'
+        if static.user_actions.nominate in allowed_actions and get_current_round_id(cursor, static.contest_stages.nomination):
+            print '        Пока можно ' + pages.nomination.page_link('номинировать') + ' креатив на следующий раунд,<br>который'
+        else:
+            print '        Следующий раунд голосования'
+        print '        начнётся в&nbsp;'+ datetime2str(next_voting_time, append_relative_day = True, append_when_weekday = True) + '.'
 
     print '      <p></center>'
 
