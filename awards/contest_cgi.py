@@ -1588,44 +1588,68 @@ def print_errors():
 
 
 def maint(cursor):
-    cursor.execute('''
-        select stage, round
-        from contest_rounds_and_stages
-        where tense = %s and contest = %s and ends <= %s''',
-        (static.tenses.present.id, static.contest.id, static.start_time))
-    for stage, round in cursor.fetchall():
+    while True:
         cursor.execute('''
-            update contest_rounds_and_stages
-            set tense = null
-            where tense = %s and contest = %s and stage = %s''',
-            (static.tenses.present.id, static.contest.id, stage))
-        if stage == static.contest_stages.voting.id:
-            cursor.execute(
-                'delete from round_results where contest_round = %s',
-                (round,))
+            select stage, round
+            from contest_rounds_and_stages
+            where tense = %s and contest = %s and ends <= %s''',
+            (static.tenses.present.id, static.contest.id, static.start_time))
+        for stage, round in cursor.fetchall():
             cursor.execute('''
-                insert into round_results
-                    select * from round_results_view where contest_round = %s''',
-                (round,))
-            cursor.execute(
-                'delete from round_winners where contest_round = %s',
-                (round,))
-            cursor.execute('''
-                insert into round_winners
-                    select * from round_winners_view where contest_round = %s''',
-                (round,))
+                update contest_rounds_and_stages
+                set tense = null
+                where tense = %s and contest = %s and stage = %s''',
+                (static.tenses.present.id, static.contest.id, stage))
 
-    cursor.execute('''
-        select stage, round
-        from contest_rounds_and_stages
-        where tense = %s and contest = %s and begins <= %s''',
-        (static.tenses.future.id, static.contest.id, static.start_time))
-    for stage, round in cursor.fetchall():
+            if stage == static.contest_stages.voting.id:
+                cursor.execute(
+                    'delete from round_results where contest_round = %s',
+                    (round,))
+                cursor.execute('''
+                    insert into round_results
+                        select * from round_results_view where contest_round = %s''',
+                    (round,))
+                cursor.execute(
+                    'delete from round_winners where contest_round = %s',
+                    (round,))
+                cursor.execute('''
+                    insert into round_winners
+                        select * from round_winners_view where contest_round = %s''',
+                    (round,))
+
+        stages_has_ended = False
+
         cursor.execute('''
-            update contest_rounds_and_stages
-            set tense = %s
-            where tense = %s and contest = %s and stage = %s''',
-            (static.tenses.present.id, static.tenses.future.id, static.contest.id, stage))
+            select stage, round, begins, ends <= %s as has_already_ended
+            from contest_rounds_and_stages
+            where tense = %s and contest = %s and begins <= %s''',
+            (static.start_time, static.tenses.future.id, static.contest.id, static.start_time))
+        for stage, round, begins, has_already_ended in cursor.fetchall():
+            cursor.execute('''
+                update contest_rounds_and_stages
+                set tense = %s
+                where tense = %s and contest = %s and stage = %s''',
+                (static.tenses.present.id, static.tenses.future.id, static.contest.id, stage))
+
+            stages_has_ended = stages_has_ended or has_already_ended
+
+            next_round = my.sql.get_unique_one(cursor, '''
+                select round
+                from contest_rounds_and_stages
+                where contest = %s and stage = %s and begins = (
+                    select min(begins)
+                    from contest_rounds_and_stages
+                    where contest = %s and stage = %s and begins > %s)''',
+                (static.contest.id, stage, static.contest.id, stage, begins))
+            if next_round:
+                cursor.execute('''
+                    update contest_rounds_and_stages
+                    set tense = %s
+                    where round = %s and stage = %s''',
+                    (static.tenses.future.id, next_round, stage))
+
+        if not stages_has_ended:
+            break
 
 
 def main_with_cursor(cursor):
