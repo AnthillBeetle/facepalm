@@ -16,6 +16,9 @@
 --- along with Facepalm web-engine. If not, see <http://www.gnu.org/licenses/>.
 
 
+--- Access control
+
+
 insert into user_roles(identifier, name) values('banned', 'бан');
 insert into user_roles(identifier, name) values('anonymous', 'аноним');
 insert into user_roles(identifier, name) values('registered', 'зарегистрированный пользователь');
@@ -48,7 +51,64 @@ where
     role <> (select id from user_roles where identifier = 'anonymous') and
     action = (select id from user_actions where identifier = 'register');
 
--- select roles.identifier, actions.identifier, is_allowed from user_roles_and_actions allows, user_roles roles, user_actions actions where allows.role = roles.id and allows.action = actions.id;
+
+--- Contest structure
+
+
+insert into contest_stages(priority, identifier, description) values(1, 'publishing', 'публикация креатива');
+insert into contest_stages(priority, identifier, description) values(2, 'nomination', 'номинирование креатива');
+insert into contest_stages(priority, identifier, description) values(25, 'review', 'рецензирование номинаций');
+insert into contest_stages(priority, identifier, description) values(3, 'voting', 'голосование');
+insert into contest_stages(priority, identifier, description) values(4, 'results', 'вывешивание результатов');
+
+insert into tenses(id, identifier, description) values(0, 'present', 'настоящее');
+insert into tenses(id, identifier, description) values(1, 'future', 'будущее');
+
+
+--- Godville-specific
+
+
+insert into ideabox_sections(priority, identifier, godville_section_name, short_name)
+    values(1, 'diary', 'Фразы', 'Фраза');
+insert into ideabox_sections(priority, identifier, godville_section_name, short_name)
+    values(2, 'status', 'Вести', 'Весть');
+insert into ideabox_sections(priority, identifier, godville_section_name, short_name)
+    values(3, 'duel', 'Хроника дуэлей', 'Хроника');
+insert into ideabox_sections(priority, identifier, godville_section_name, short_name)
+    values(4, 'quest', 'Задания', 'Задание');
+insert into ideabox_sections(priority, identifier, godville_section_name, short_name, prefix)
+    values(5, 'monster', 'Монстры', 'Монстр', 'Монстр');
+insert into ideabox_sections(priority, identifier, godville_section_name, short_name, prefix)
+    values(6, 'artifact', 'Трофеи', 'Трофей', 'Трофей');
+insert into ideabox_sections(priority, identifier, godville_section_name, godville_subsection_name, short_name, prefix)
+    values(70, 'weapon', 'Снаряжение', 'Оружие', 'Снаряжение/Оружие', 'Оружие');
+insert into ideabox_sections(priority, identifier, godville_section_name, godville_subsection_name, short_name, prefix)
+    values(71, 'shield', 'Снаряжение', 'Щит', 'Снаряжение/Щит', 'Щит');
+insert into ideabox_sections(priority, identifier, godville_section_name, godville_subsection_name, short_name, prefix)
+    values(72, 'head', 'Снаряжение', 'Голова', 'Снаряжение/Голова', 'Голова');
+insert into ideabox_sections(priority, identifier, godville_section_name, godville_subsection_name, short_name, prefix)
+    values(73, 'body', 'Снаряжение', 'Тело', 'Снаряжение/Тело', 'Тело');
+insert into ideabox_sections(priority, identifier, godville_section_name, godville_subsection_name, short_name, prefix)
+    values(74, 'arms', 'Снаряжение', 'Руки', 'Снаряжение/Руки', 'Руки');
+insert into ideabox_sections(priority, identifier, godville_section_name, godville_subsection_name, short_name, prefix)
+    values(75, 'legs', 'Снаряжение', 'Ноги', 'Снаряжение/Ноги', 'Ноги');
+insert into ideabox_sections(priority, identifier, godville_section_name, godville_subsection_name, short_name, prefix)
+    values(76, 'talisman', 'Снаряжение', 'Талисман', 'Снаряжение/Талисман', 'Талисман');
+insert into ideabox_sections(priority, identifier, godville_section_name, short_name, prefix)
+    values(8, 'newspaper', 'Новости для газеты', 'Новость', 'Новость');
+insert into ideabox_sections(priority, identifier, godville_section_name, short_name, prefix)
+    values(9, 'questionable', 'Сомнительный контент', 'Сомнительный контент', 'Обсуждаемое');
+insert into ideabox_sections(priority, identifier, godville_section_name, short_name)
+    values('A', 'other', 'Другое', 'Другое');
+
+insert into ideabox_stages(priority, identifier, google_docs_name, name)
+    values(1, 'voting', 'Первичное голосование', 'Голосование');
+insert into ideabox_stages(priority, identifier, google_docs_name, name, clarification)
+    values(2, 'correction', 'Операционная, коррекция', 'Коррекция', 'коррекция');
+
+
+--- Contest-specific
+
 
 insert into contests(godville_topic_id, identifier, name, pagelist_suffix, announcement, prix_character_html) values(
     2143,
@@ -66,15 +126,6 @@ insert into contests(godville_topic_id, identifier, name, pagelist_suffix, annou
     'А знаете ли вы, что параллельно проходит конкурс на самый гениальный креатив?<br>К нему можно перейти по ссылке «ещё» справа вверху.',
     '善'
 );
-
-insert into contest_stages(priority, identifier, description) values(1, 'publishing', 'публикация креатива');
-insert into contest_stages(priority, identifier, description) values(2, 'nomination', 'номинирование креатива');
-insert into contest_stages(priority, identifier, description) values(25, 'review', 'рецензирование номинаций');
-insert into contest_stages(priority, identifier, description) values(3, 'voting', 'голосование');
-insert into contest_stages(priority, identifier, description) values(4, 'results', 'вывешивание результатов');
-
-insert into tenses(id, identifier, description) values(0, 'present', 'настоящее');
-insert into tenses(id, identifier, description) values(1, 'future', 'будущее');
 
 set @contest_id = (select id from contests where identifier = 'facepalm');
 insert into contest_categories(contest, is_grand_prix, priority, name, description) values(
@@ -147,42 +198,4 @@ insert into contest_categories(contest, is_grand_prix, priority, name, descripti
     'Кароши люблю',
     'лучшее из лучшего'
 );
-
-insert into ideabox_sections(priority, identifier, godville_section_name, short_name)
-    values(1, 'diary', 'Фразы', 'Фраза');
-insert into ideabox_sections(priority, identifier, godville_section_name, short_name)
-    values(2, 'status', 'Вести', 'Весть');
-insert into ideabox_sections(priority, identifier, godville_section_name, short_name)
-    values(3, 'duel', 'Хроника дуэлей', 'Хроника');
-insert into ideabox_sections(priority, identifier, godville_section_name, short_name)
-    values(4, 'quest', 'Задания', 'Задание');
-insert into ideabox_sections(priority, identifier, godville_section_name, short_name, prefix)
-    values(5, 'monster', 'Монстры', 'Монстр', 'Монстр');
-insert into ideabox_sections(priority, identifier, godville_section_name, short_name, prefix)
-    values(6, 'artifact', 'Трофеи', 'Трофей', 'Трофей');
-insert into ideabox_sections(priority, identifier, godville_section_name, godville_subsection_name, short_name, prefix)
-    values(70, 'weapon', 'Снаряжение', 'Оружие', 'Снаряжение/Оружие', 'Оружие');
-insert into ideabox_sections(priority, identifier, godville_section_name, godville_subsection_name, short_name, prefix)
-    values(71, 'shield', 'Снаряжение', 'Щит', 'Снаряжение/Щит', 'Щит');
-insert into ideabox_sections(priority, identifier, godville_section_name, godville_subsection_name, short_name, prefix)
-    values(72, 'head', 'Снаряжение', 'Голова', 'Снаряжение/Голова', 'Голова');
-insert into ideabox_sections(priority, identifier, godville_section_name, godville_subsection_name, short_name, prefix)
-    values(73, 'body', 'Снаряжение', 'Тело', 'Снаряжение/Тело', 'Тело');
-insert into ideabox_sections(priority, identifier, godville_section_name, godville_subsection_name, short_name, prefix)
-    values(74, 'arms', 'Снаряжение', 'Руки', 'Снаряжение/Руки', 'Руки');
-insert into ideabox_sections(priority, identifier, godville_section_name, godville_subsection_name, short_name, prefix)
-    values(75, 'legs', 'Снаряжение', 'Ноги', 'Снаряжение/Ноги', 'Ноги');
-insert into ideabox_sections(priority, identifier, godville_section_name, godville_subsection_name, short_name, prefix)
-    values(76, 'talisman', 'Снаряжение', 'Талисман', 'Снаряжение/Талисман', 'Талисман');
-insert into ideabox_sections(priority, identifier, godville_section_name, short_name, prefix)
-    values(8, 'newspaper', 'Новости для газеты', 'Новость', 'Новость');
-insert into ideabox_sections(priority, identifier, godville_section_name, short_name, prefix)
-    values(9, 'questionable', 'Сомнительный контент', 'Сомнительный контент', 'Обсуждаемое');
-insert into ideabox_sections(priority, identifier, godville_section_name, short_name)
-    values('A', 'other', 'Другое', 'Другое');
-
-insert into ideabox_stages(priority, identifier, google_docs_name, name)
-    values(1, 'voting', 'Первичное голосование', 'Голосование');
-insert into ideabox_stages(priority, identifier, google_docs_name, name, clarification)
-    values(2, 'correction', 'Операционная, коррекция', 'Коррекция', 'коррекция');
 
