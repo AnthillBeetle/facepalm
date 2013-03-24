@@ -107,15 +107,21 @@ create table contests_and_users(
     foreign key(role) references user_roles(id)
 );
 
+create table nomination_sources(
+    id int not null auto_increment primary key,
+    identifier varchar(255) unique not null,
+    description text not null
+);
 create table contest_categories(
     id int not null auto_increment primary key,
     contest int not null,
-    is_grand_prix bool not null default false,
+    nomination_source int not null,
     priority varchar(255) not null,
     name varchar(255) unique not null,
     description text not null,
     unique key(contest, priority),
-    foreign key(contest) references contests(id)
+    foreign key(contest) references contests(id),
+    foreign key(nomination_source) references nomination_sources(id)
 );
 
 create table ideabox_sections(

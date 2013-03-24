@@ -55,6 +55,14 @@ where
 --- Contest structure
 
 
+insert into nomination_sources(identifier, description) values('disabled', 'категория недоступна для номинирования');
+insert into nomination_sources(identifier, description) values('manual', 'категория выбирается вручную');
+insert into nomination_sources(identifier, description) values('singleton', 'единственная категория');
+insert into nomination_sources(identifier, description) values('best', 'лучшее из выбранного в других категориях');
+insert into nomination_sources(identifier, description) values('other', 'не выбранное ни в одной из других категорий');
+insert into nomination_sources(identifier, description) values('ideabox_section', 'категория определяется разделом ящика');
+set @manual_nomination_source = (select id from nomination_sources where identifier = 'manual');
+
 insert into contest_stages(priority, identifier, description) values(1, 'publishing', 'публикация креатива');
 insert into contest_stages(priority, identifier, description) values(2, 'nomination', 'номинирование креатива');
 insert into contest_stages(priority, identifier, description) values(25, 'review', 'рецензирование номинаций');
@@ -128,54 +136,68 @@ insert into contests(godville_topic_id, identifier, name, pagelist_suffix, annou
 );
 
 set @contest_id = (select id from contests where identifier = 'facepalm');
-insert into contest_categories(contest, is_grand_prix, priority, name, description) values(
+insert into contest_categories(contest, nomination_source, priority, name, description) values(
     @contest_id,
-    true,
-    1,
+    (select id from nomination_sources where identifier = 'best'),
+    'A',
     'Непревзойдённый фейспалм',
     'когда рука тянется к лицу буквально на чувственном уровне, креатив неописуемо бессмыслен, неправилен и неадекватен'
 );
-insert into contest_categories(contest, priority, name, description) values(
+insert into contest_categories(contest, nomination_source, priority, name, description) values(
     @contest_id,
+    @manual_nomination_source,
     2,
     'Ниже плинтуса',
     'шутки сортирного типа или направленные ниже пояса (обычный мат на конкурс не принимается, его надо просто флажковать)'
 );
-insert into contest_categories(contest, priority, name, description) values(
+insert into contest_categories(contest, nomination_source, priority, name, description) values(
     @contest_id,
+    @manual_nomination_source,
     3,
     'Интеллект так и прёт',
     'идеи, бездумно слепляющие в одно целое малосвязанные куски текста'
 );
-insert into contest_categories(contest, priority, name, description) values(
+insert into contest_categories(contest, nomination_source, priority, name, description) values(
     @contest_id,
+    @manual_nomination_source,
     4,
     'Негуманоидная логика',
     'бессмысленные наборы букв и идеи с неустранимыми логическими противоречиями'
 );
-insert into contest_categories(contest, priority, name, description) values(
+insert into contest_categories(contest, nomination_source, priority, name, description) values(
     @contest_id,
+    @manual_nomination_source,
     5,
     'Новая песня на старый лад',
     'идеи, которые уже многократно светились в ящике и были обсосаны до косточки, либо бородатые шутки, известные всем и без игры («Бояны»)'
 );
-insert into contest_categories(contest, priority, name, description) values(
+insert into contest_categories(contest, nomination_source, priority, name, description) values(
     @contest_id,
+    @manual_nomination_source,
     6,
     'Мисс Монстр',
     'Монстры Женского Рода («МЖР») — любому автору должно быть известно, что монстр обязан быть существительным мужского (либо общего) рода единственного числа'
 );
-insert into contest_categories(contest, priority, name, description) values(
+insert into contest_categories(contest, nomination_source, priority, name, description) values(
     @contest_id,
+    @manual_nomination_source,
     7,
     'Будет жирно и не слипнется',
     'фразы или активируемые трофеи, позволяющие легко получить много золотых кирпичей, кубиков праны, вылечить питомца, построить храм и т.д.'
 );
-insert into contest_categories(contest, priority, name, description) values(
+insert into contest_categories(contest, nomination_source, priority, name, description) values(
     @contest_id,
+    @manual_nomination_source,
     8,
     'Незамутнённое дарование',
     'тривиальнейшие идеи ясельного уровня (шутки про чукч и т.п.), часто со множеством грамматических ошибок'
+);
+insert into contest_categories(contest, nomination_source, priority, name, description) values(
+    @contest_id,
+    (select id from nomination_sources where identifier = 'other'),
+    'Q',
+    'Прочее',
+    'если ни одна из других категорий не выбрана'
 );
 
 set @contest_id = (select id from contests where identifier = 'karoshi');
@@ -191,9 +213,9 @@ set @contest_id = (select id from contests where identifier = 'karoshi');
 --     'Лучшая коррекция',
 --     'операционная'
 -- );
-insert into contest_categories(contest, is_grand_prix, priority, name, description) values(
+insert into contest_categories(contest, nomination_source, priority, name, description) values(
     @contest_id,
-    True,
+    (select id from nomination_sources where identifier = 'singleton'),
     2,
     'Кароши люблю',
     'лучшее из лучшего'

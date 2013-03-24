@@ -29,6 +29,15 @@ import my.sql
 import MySQLdb
 
 
+def get_single_or_none(l):
+    if not l:
+        return None
+    elif len(l) == 1:
+        return l[0]
+    else:
+        raise my.sql.UniquenessError
+
+
 def init(cursor, contest_identifier):
     global start_time
     start_time = my.sql.get_unique_one(cursor,
@@ -55,6 +64,10 @@ def init(cursor, contest_identifier):
     tenses = my.sql.get_indexed_named_tuples(cursor,
         'select * from tenses')
 
+    global nomination_sources
+    nomination_sources = my.sql.get_indexed_named_tuples(cursor,
+        'select * from nomination_sources')
+
     global contest_categories
     contest_categories = my.sql.get_indexed_named_tuples(cursor,
         'select * from contest_categories where contest = %s order by priority',
@@ -68,3 +81,28 @@ def init(cursor, contest_identifier):
     ideabox_stages = my.sql.get_indexed_named_tuples(cursor,
         'select * from ideabox_stages order by priority')
 
+
+    categories_by_source = {}
+    for nomination_source in nomination_sources:
+        categories_by_source[nomination_source] = []
+    for category in contest_categories:
+        categories_by_source[nomination_sources[category.nomination_source]].append(category)
+    
+    global disabled_nomination_category
+    disabled_nomination_category = get_single_or_none(categories_by_source[nomination_sources.disabled])
+    
+    global manual_nomination_categories
+    manual_nomination_categories = categories_by_source[nomination_sources.manual]
+    
+    global singleton_nomination_category
+    singleton_nomination_category = get_single_or_none(categories_by_source[nomination_sources.singleton])
+
+    global best_nomination_category
+    best_nomination_category = get_single_or_none(categories_by_source[nomination_sources.best])
+
+    global other_nomination_category
+    other_nomination_category = get_single_or_none(categories_by_source[nomination_sources.other])
+
+    global hidden_nomination_categories
+    hidden_nomination_categories = categories_by_source[nomination_sources.disabled] + categories_by_source[nomination_sources.other]
+    
