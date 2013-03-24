@@ -55,12 +55,12 @@ where
 --- Contest structure
 
 
-insert into nomination_sources(identifier, description) values('disabled', 'категория недоступна для номинирования');
-insert into nomination_sources(identifier, description) values('manual', 'категория выбирается вручную');
-insert into nomination_sources(identifier, description) values('singleton', 'единственная категория');
-insert into nomination_sources(identifier, description) values('best', 'лучшее из выбранного в других категориях');
-insert into nomination_sources(identifier, description) values('other', 'не выбранное ни в одной из других категорий');
-insert into nomination_sources(identifier, description) values('ideabox_section', 'категория определяется разделом ящика');
+insert into nomination_sources(is_unique, identifier, description) values(false, 'disabled', 'категория недоступна для номинирования');
+insert into nomination_sources(is_unique, identifier, description) values(false, 'manual', 'категория выбирается вручную');
+insert into nomination_sources(is_unique, identifier, description) values(true, 'singleton', 'единственная категория');
+insert into nomination_sources(is_unique, identifier, description) values(true, 'best', 'лучшее из выбранного в других категориях');
+insert into nomination_sources(is_unique, identifier, description) values(true, 'other', 'не выбранное ни в одной из других категорий');
+insert into nomination_sources(is_unique, identifier, description) values(false, 'ideabox_section', 'категория определяется разделом ящика');
 set @manual_nomination_source = (select id from nomination_sources where identifier = 'manual');
 
 insert into contest_stages(priority, identifier, description) values(1, 'publishing', 'публикация креатива');

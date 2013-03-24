@@ -511,9 +511,11 @@ def print_nomination(cursor):
     print '        <label for="user_comment">Ваши комментарии:</label><br>'
     print '        <textarea class="content" name="user_comment" id="user_comment" style="width: 100%;"></textarea>'
 
-    if static.manual_nomination_categories:
+    manual_nomination_categories = [category for category in static.contest_categories
+        if category.nomination_source == static.nomination_sources.manual.id]
+    if manual_nomination_categories:
         print '    <p style="text-align: justify;">'
-        for category in static.manual_nomination_categories:
+        for category in manual_nomination_categories:
             print '        <span title="' + escape(category.description) + '">'
             print ('            <span style="white-space: nowrap;">'
                 + '<input type="checkbox" name="category" id="category.' + str(category.id) + '"'
@@ -632,11 +634,11 @@ def process_nomination(cursor):
     masterpiece_id = cursor.connection.insert_id()
 
     category_ids = form.getlist('category')
-    if static.other_nomination_category and not category_ids:
-        category_ids.append(static.other_nomination_category.id)
-    for category in (static.singleton_nomination_category, static.best_nomination_category):
-        if category:
-            category_ids.append(category.id)
+    if not category_ids and static.nomination_sources.other.category:
+        category_ids.append(static.nomination_sources.other.category)
+    for category_id in (static.nomination_sources.singleton.category, static.nomination_sources.best.category):
+        if category_id:
+            category_ids.append(category_id)
     for category_id in category_ids:
         cursor.execute('''
             insert into nominations(contest_round, masterpiece, contest_category, user)
@@ -733,8 +735,7 @@ def process_review(cursor):
 
 def prepare_voting(cursor):
     global available_categories, selected_category, page_subtitle
-    available_categories = list(category for category in static.contest_categories.values
-        if category not in static.hidden_nomination_categories)
+    available_categories = list(category for category in static.contest_categories.values if not category.is_hidden)
     selected_category = available_categories[0]
     if 'category' in form:
         if form['category'].value == 'choice':
@@ -743,7 +744,7 @@ def prepare_voting(cursor):
             category_id = int(form['category'].value)
             if category_id in static.contest_categories:
                 selected_category = static.contest_categories[category_id]
-                if selected_category in static.hidden_nomination_categories:
+                if selected_category.is_hidden:
                     selected_category = available_categories[0]
     if selected_category:
         page_subtitle = selected_category.name
@@ -779,7 +780,7 @@ def print_voting_category(cursor):
     print '        Выберите в следующем списке креатив, наиболее подходящий под описание категории.'
     print '        Чтобы проголосовать, нажмите кнопку, расположенную справа от креатива.'
     if 'one_off' not in form:
-        if selected_category != static.singleton_nomination_category:
+        if len(available_categories) > 1:
             print '        После голосования в одной категории автоматически отображается следующая.'
         print '        При необходимости можно вернуться и изменить свой выбор.'
     print '      </p>'
@@ -793,7 +794,7 @@ def print_voting_category(cursor):
     print '    <table style="border-collapse: collapse; width: 100%;">'
 
     show_voted_only = (
-        selected_category == static.best_nomination_category and
+        selected_category.nomination_source == static.nomination_sources.best.id and
         not ('show' in form and form['show'].value == 'all'))
 
     if show_voted_only:
@@ -840,9 +841,9 @@ def print_voting_category(cursor):
             print '            <input type="submit" name="vote.' + str(masterpiece.id) + '" value="»" title="Выбрать!">'
             print '          </td></tr>'
 
-        if not show_voted_only or not static.other_nomination_category:
+        if not show_voted_only or not static.nomination_sources.other.category:
             break
-        category_id = static.other_nomination_category.id
+        category_id = static.nomination_sources.other.category
         show_voted_only = False
 
     if skipped_masterpieces:
@@ -854,7 +855,7 @@ def print_voting_category(cursor):
             ('Скрыта', 'единица') #if last_digit = 1
         )
         print '            ' + verb + ' ' + str(skipped_masterpieces) + ' ' + unit + ' креатива,'
-        print '            за ' + ('которые' if skipped_masterpieces > 1 else 'которую') + ' вы не проголосовали в других номинациях.'
+        print '            за ' + ('которые' if skipped_masterpieces > 1 else 'которую') + ' вы не проголосовали в других категориях.'
         print '            ' + pages.voting.page_link('(показать всё)',
             'category=' + str(selected_category.id) +
             '&show=all' +
@@ -1058,7 +1059,7 @@ def print_results(cursor):
     print '      </div>'
 
     for category in static.contest_categories:
-        if category in static.hidden_nomination_categories:
+        if category.is_hidden:
             continue
 
         print '    <div style="padding: 1ex;">'
@@ -1461,8 +1462,6 @@ class Page:
         print_function,
         process_function
     ):
-        self._fields = ('id', 'identifier')
-
         self.id = identifier
         self.identifier = identifier
 
@@ -1496,7 +1495,7 @@ class Page:
 def init_pages():
     global pages, default_page
 
-    pages = my.sql.Indexed((
+    pages = my.sql.Indexed(('id', 'identifier'), (
         Page(
             identifier = 'entrance',
             name = 'вход',

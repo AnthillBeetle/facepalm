@@ -165,7 +165,7 @@ def get_unique_named_tuple(cursor, query, *parameters):
     return value
 
 class Indexed(object):
-    def __init__(self, values):
+    def __init__(self, index_fields, values):
         values = tuple(values)
         by_id = {}
         by_identifier = {}
@@ -173,11 +173,19 @@ class Indexed(object):
         self.__by_id = by_id
         self.__by_identifier = by_identifier
         for value in values:
-            if 'id' in value._fields:
-                by_id[value.id] = value
-            if 'identifier' in value._fields:
-                by_identifier[value.identifier] = value
-                self.__setattr__(value.identifier, value)
+            if 'id' in index_fields:
+                id = value.id
+                if id is not None:
+                    if id in by_id:
+                        raise UniquenessError
+                    by_id[id] = value
+            if 'identifier' in index_fields:
+                identifier = value.identifier
+                if identifier is not None:
+                    if identifier in by_identifier:
+                        raise UniquenessError
+                    by_identifier[identifier] = value
+                    self.__setattr__(identifier, value)
     # list-like methods
     def __len__(self):
         return self.__values.__len__()
@@ -207,5 +215,5 @@ def get_indexed_named_tuples(cursor, query, *parameters):
     for row in cursor.fetchall():
         value = value_type(len(values), *row)
         values.append(value)
-    return Indexed(values)
+    return Indexed(value_type._fields, values)
 

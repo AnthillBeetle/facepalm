@@ -109,8 +109,10 @@ create table contests_and_users(
 
 create table nomination_sources(
     id int not null auto_increment primary key,
+    is_unique bool not null,
     identifier varchar(255) unique not null,
-    description text not null
+    description text not null,
+    unique key(is_unique, id)
 );
 create table contest_categories(
     id int not null auto_increment primary key,
@@ -120,6 +122,7 @@ create table contest_categories(
     name varchar(255) unique not null,
     description text not null,
     unique key(contest, priority),
+    key(contest, nomination_source),
     foreign key(contest) references contests(id),
     foreign key(nomination_source) references nomination_sources(id)
 );
