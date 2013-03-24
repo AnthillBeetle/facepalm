@@ -529,7 +529,7 @@ def print_nomination(cursor):
 
     is_first = True
 
-    masterpieces = my.sql.get_indexed_named_tuples(cursor, '''
+    masterpieces = my.sql.get_named_tuples(cursor, '''
         select
             masterpieces.*,
             nominations.added nomination_date
@@ -666,7 +666,7 @@ def print_review(cursor):
 
     order = 'asc' if format else 'desc'
 
-    masterpieces = my.sql.get_indexed_named_tuples(cursor, '''
+    masterpieces = my.sql.get_named_tuples(cursor, '''
         select
             masterpieces.*,
             nominations.added nomination_date,
@@ -735,6 +735,7 @@ def process_review(cursor):
 
 def prepare_voting(cursor):
     global available_categories, selected_category, page_subtitle
+    # TODO
     available_categories = list(category for category in static.contest_categories.values if not category.is_hidden)
     selected_category = available_categories[0]
     if 'category' in form:
@@ -815,7 +816,7 @@ def print_voting_category(cursor):
     category_id = selected_category.id
     skipped_masterpieces = 0
     for loop_index in (1, 2):
-        masterpieces = my.sql.get_indexed_named_tuples(cursor, '''
+        masterpieces = my.sql.get_named_tuples(cursor, '''
             select masterpieces.*
             from masterpieces, nominations
             where
@@ -881,7 +882,7 @@ def print_voting_choice(cursor):
 
     has_votes = False
 
-    masterpieces = my.sql.get_indexed_named_tuples(cursor, '''
+    masterpieces = my.sql.get_named_tuples(cursor, '''
         select
             categories.id category_id,
             categories.name category_name,
@@ -1084,7 +1085,7 @@ def print_results(cursor):
             continue
  
         total_score = float(total_score)
-        masterpieces = my.sql.get_indexed_named_tuples(cursor, '''
+        masterpieces = my.sql.get_named_tuples(cursor, '''
             select
                 results.registered_score,
                 results.score,
@@ -1105,9 +1106,8 @@ def print_results(cursor):
             limit 3''',
             results_query_parameters + (current_round_id, category.id))
         if preview:
-            masterpieces_list = list(masterpieces)
-            winning_score = masterpieces_list[0].score
-            if len(masterpieces_list) >= 3 and masterpieces_list[2].score == winning_score:
+            winning_score = masterpieces[0].score
+            if len(masterpieces) >= 3 and masterpieces[2].score == winning_score:
                 winning_score = total_score
         for masterpiece in masterpieces:
             if not masterpiece.score:

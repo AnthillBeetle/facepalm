@@ -164,6 +164,16 @@ def get_unique_named_tuple(cursor, query, *parameters):
     value = type(*row) if row else None
     return value
 
+def get_named_tuples(cursor, query, *parameters):
+    'Returns <code>query</code> result as <code>namedtuple</code> objects list.'
+    cursor.execute(query, *parameters)
+    value_type = define_named_tuple(cursor, ('index', ))
+    values = []
+    for row in cursor.fetchall():
+        value = value_type(len(values), *row)
+        values.append(value)
+    return values
+
 class Indexed(object):
     def __init__(self, index_fields, values):
         values = tuple(values)
