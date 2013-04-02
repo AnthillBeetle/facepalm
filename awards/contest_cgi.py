@@ -451,7 +451,7 @@ def process_entrance(cursor):
                 if old_user and not old_user.name:
                     merge_user_into(cursor, old_user.id, user.id)
                 selected_page = pages.voting
-                redirect_parameters['category'] = 'choice'
+                redirect_parameters['category_index'] = 'review'
                 return
             errors.append('Неверное имя пользователя или ключ.')
 
@@ -734,21 +734,21 @@ def process_review(cursor):
 
 
 def prepare_voting(cursor):
-    global available_categories, selected_category, page_subtitle
-    # TODO
+    global one_off, available_categories, category_index, page_subtitle
+
+    one_off = 'one_off' in form and form['one_off'].value == 'yes'
+
     available_categories = list(category for category in static.contest_categories.values if not category.is_hidden)
-    selected_category = available_categories[0]
-    if 'category' in form:
-        if form['category'].value == 'choice':
-            selected_category = None
+    category_index = 0
+    if 'category_index' in form:
+        if form['category_index'].value == 'review':
+            category_index = None
         else:
-            category_id = int(form['category'].value)
-            if category_id in static.contest_categories:
-                selected_category = static.contest_categories[category_id]
-                if selected_category.is_hidden:
-                    selected_category = available_categories[0]
-    if selected_category:
-        page_subtitle = selected_category.name
+            category_index = int(form['category_index'].value)
+            if category_index < 0 or category_index >= len(available_categories):
+                category_index = None
+    if category_index is not None:
+        page_subtitle = available_categories[category_index].name
 
 
 def print_voting_closed_message(cursor):
@@ -772,6 +772,7 @@ def print_voting_closed_message(cursor):
 
 
 def print_voting_category(cursor):
+    selected_category = available_categories[category_index]
     trailing_dot = '.' if selected_category.description[-1] not in '.?!' else ''
     print '    <p>'
     print '        Категория <b>«' + escape(selected_category.name) + '»</b> —'
@@ -780,17 +781,15 @@ def print_voting_category(cursor):
     print '    <p>'
     print '        Выберите в следующем списке креатив, наиболее подходящий под описание категории.'
     print '        Чтобы проголосовать, нажмите кнопку, расположенную справа от креатива.'
-    if 'one_off' not in form:
+    if not one_off:
         if len(available_categories) > 1:
             print '        После голосования в одной категории автоматически отображается следующая.'
         print '        При необходимости можно вернуться и изменить свой выбор.'
     print '      </p>'
 
-    print '    <input type="hidden" name="category" value="' + str(selected_category.id) + '">'
-    if 'one_off' not in form:
-        if selected_category.index + 1 < len(available_categories):
-            next_category = available_categories[selected_category.index + 1]
-            print '    <input type="hidden" name="next_category" value="' + str(next_category.id) + '">'
+    print '    <input type="hidden" name="category_index" value="' + str(category_index) + '">'
+    if one_off:
+        print '    <input type="hidden" name="one_off" value="yes">'
 
     print '    <table style="border-collapse: collapse; width: 100%;">'
 
@@ -858,9 +857,9 @@ def print_voting_category(cursor):
         print '            ' + verb + ' ' + str(skipped_masterpieces) + ' ' + unit + ' креатива,'
         print '            за ' + ('которые' if skipped_masterpieces > 1 else 'которую') + ' вы не проголосовали в других категориях.'
         print '            ' + pages.voting.page_link('(показать всё)',
-            'category=' + str(selected_category.id) +
+            'category_index=' + str(category_index) +
             '&show=all' +
-            ('&one_off=yes' if 'one_off' in form else ''))
+            ('&one_off=yes' if one_off else ''))
         print '          </center></td></tr>'
 
     print '        <tr><td class="ballot">'
@@ -894,12 +893,12 @@ def print_voting_choice(cursor):
         where categories.contest = %s and categories.nomination_source <> %s
         order by categories.priority''',
         (current_round_id, user.id if user else None, static.contest.id, static.nomination_sources.other.id))
-    for masterpiece in masterpieces:
+    for index, masterpiece in enumerate(masterpieces):
         print '    <div style="padding: 1ex;">'
         print '        <b>' + escape(masterpiece.category_name) + '</b>'
         print '        ' + pages.voting.page_link(
             '(переголосовать)' if masterpiece.content else '(проголосовать)',
-            'category=' + str(masterpiece.category_id) + '&one_off=yes')
+            'category_index=' + str(index) + '&one_off=yes')
         print '        <div style="padding-left: 4ex;">'
         if masterpiece.content:
             print_masterpiece(' '*12, masterpiece)
@@ -924,31 +923,31 @@ def print_voting(cursor):
 
     print '    <center><p>'
 
-    for category in available_categories:
-        if category == selected_category:
+    for index, category in enumerate(available_categories):
+        if index == category_index:
             category_line = '<b>' + category.name + '</b>'
         else:
-            category_line = pages.voting.page_link(category.name, 'category=' + str(category.id))
-        if category.index > 0:
+            category_line = pages.voting.page_link(category.name, 'category_index=' + str(index))
+        if index > 0:
             category_line = '| ' + category_line
         print ' '*8 + category_line
 
-    if selected_category:
-        category_line = pages.voting.page_link('выбранное', 'category=choice')
+    if category_index is not None:
+        category_line = pages.voting.page_link('выбранное', 'category_index=review')
     else:
         category_line = '<b>выбранное</b>'
     print ' '*8 + '| ' + category_line
 
     print '      </p></center>'
 
-    if selected_category:
+    if category_index is not None:
         print_voting_category(cursor)
     else:
         print_voting_choice(cursor)
 
 
 def process_voting(cursor):
-    global selected_page
+    global category_index
 
     if static.user_actions.vote not in allowed_actions:
         errors.append('Недостаточно прав доступа для голосования.')
@@ -956,15 +955,13 @@ def process_voting(cursor):
     if not current_round_id:
         return
 
-    if user and 'abstain_all' in form:
-        cursor.execute('delete from votes where contest_round = %s and user = %s', (current_round_id, user.id))
-        redirect_parameters['category'] = 'choice'
+    prepare_voting(cursor)
+    if category_index is None:
+        if user and 'abstain_all' in form:
+            cursor.execute('delete from votes where contest_round = %s and user = %s', (current_round_id, user.id))
+            redirect_parameters['category_index'] = 'review'
         return
-
-    if 'category' not in form:
-        return
-    category_id = form['category'].value
-    redirect_parameters['category'] = category_id
+    category_id = available_categories[category_index].id
     has_voted = False
 
     if user and 'abstain' in form:
@@ -986,7 +983,10 @@ def process_voting(cursor):
         has_voted = True
 
     if has_voted:
-        redirect_parameters['category'] = form['next_category'].value if 'next_category' in form else 'choice'
+        category_index += 1
+        if one_off or category_index >= len(available_categories):
+            category_index = None
+    redirect_parameters['category_index'] = str(category_index) if category_index is not None else 'review'
 
 
 # Page: results
