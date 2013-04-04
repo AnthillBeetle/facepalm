@@ -224,7 +224,8 @@ create table round_winners(
 
 create table notifications(
     id int not null auto_increment primary key,
-    added timestamp not null default current_timestamp
+    added timestamp not null default current_timestamp,
+    description text not null
 );
 create table notifications_and_contests(
     notification int not null,
