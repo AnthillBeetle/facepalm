@@ -495,21 +495,21 @@ def print_nomination(cursor):
     print_round_timing(cursor)
 
     #print '        <label for="content">Креатив:</label><br>'
-    print '        <select name="ideabox_section">'
+    print '    <select name="ideabox_section">'
     for section in static.ideabox_sections:
-        print '            <option value="' + escape(section.identifier) + '">' + escape(section.short_name) + '</option>'
-    print '          </select>'
+        print '        <option value="' + escape(section.identifier) + '">' + escape(section.short_name) + '</option>'
+    print '      </select>'
 
-    print ('        (<input type="checkbox" name="correction" id="correction" value="yes">'
+    print ('    (<input type="checkbox" name="correction" id="correction" value="yes">'
         + '<label for="correction">коррекция в операционной</label>):<br>')
 
-    print '        <textarea name="content" id="content" style="width: 100%;"></textarea>',
+    print '    <textarea name="content" id="content" style="width: 100%;"></textarea>',
 
-    print '        <label for="authors_explanation">Пояснение автора креатива или коррекции:</label><br>'
-    print '        <textarea name="authors_explanation" id="authors_explanation" style="width: 100%;"></textarea>'
+    print '    <label for="authors_explanation">Пояснение автора креатива или коррекции:</label><br>'
+    print '    <textarea name="authors_explanation" id="authors_explanation" style="width: 100%;"></textarea>'
 
-    print '        <label for="user_comment">Ваши комментарии:</label><br>'
-    print '        <textarea class="content" name="user_comment" id="user_comment" style="width: 100%;"></textarea>'
+    print '    <label for="user_comment">Ваши комментарии:</label><br>'
+    print '    <textarea class="content" name="user_comment" id="user_comment" style="width: 100%;"></textarea>'
 
     manual_nomination_categories = [category for category in static.contest_categories
         if category.nomination_source == static.nomination_sources.manual.id]
@@ -525,7 +525,7 @@ def print_nomination(cursor):
             print '          </span>'
         print '      </p>'
 
-    print '      <input type="submit" name="nominate" value="Номинировать!">'
+    print '    <input type="submit" name="nominate" value="Номинировать!">'
 
     is_first = True
 
