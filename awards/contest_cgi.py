@@ -626,6 +626,16 @@ def process_nomination(cursor):
         errors.append('Этот креатив уже номинирован.')
         return
 
+    category_ids = form.getlist('category')
+    if not category_ids and static.nomination_sources.other.category:
+        category_ids.append(static.nomination_sources.other.category)
+    for category_id in (static.nomination_sources.singleton.category, static.nomination_sources.best.category):
+        if category_id:
+            category_ids.append(category_id)
+    if not category_ids:
+        errors.append('Не выбрана ни одна категория.')
+        return
+
     cursor.execute('''
         insert into
             masterpieces(contest, user, ideabox_section, ideabox_stage, content, authors_explanation, user_comment)
@@ -633,12 +643,6 @@ def process_nomination(cursor):
         (static.contest.id, user.id, ideabox_section.id, ideabox_stage.id, content, authors_explanation, user_comment))
     masterpiece_id = cursor.connection.insert_id()
 
-    category_ids = form.getlist('category')
-    if not category_ids and static.nomination_sources.other.category:
-        category_ids.append(static.nomination_sources.other.category)
-    for category_id in (static.nomination_sources.singleton.category, static.nomination_sources.best.category):
-        if category_id:
-            category_ids.append(category_id)
     for category_id in category_ids:
         cursor.execute('''
             insert into nominations(contest_round, masterpiece, contest_category, user)
@@ -733,12 +737,26 @@ def process_review(cursor):
 # Page: voting
 
 
+def list_available_categories(cursor):
+    global available_categories 
+    cursor.execute(
+        'select distinct nominations.contest_category from nominations where nominations.contest_round = %s',
+        (current_round_id,))
+    category_ids = set(sum(cursor.fetchall(), ()))
+    hidden_source_ids = (static.nomination_sources.disabled.id, static.nomination_sources.other.id)
+    available_categories = list(category
+        for category
+        in static.contest_categories.values
+        if category.id in category_ids and category.nomination_source not in hidden_source_ids)
+
+
 def prepare_voting(cursor):
-    global one_off, available_categories, category_index, page_subtitle
+    global one_off, category_index, page_subtitle
 
     one_off = 'one_off' in form and form['one_off'].value == 'yes'
 
-    available_categories = list(category for category in static.contest_categories.values if not category.is_hidden)
+    list_available_categories(cursor)
+    
     category_index = 0
     if 'category_index' in form:
         if form['category_index'].value == 'review':
@@ -746,7 +764,7 @@ def prepare_voting(cursor):
         else:
             category_index = int(form['category_index'].value)
             if category_index < 0 or category_index >= len(available_categories):
-                category_index = None
+                category_index = 0
     if category_index is not None:
         page_subtitle = available_categories[category_index].name
 
@@ -788,6 +806,7 @@ def print_voting_category(cursor):
     print '      </p>'
 
     print '    <input type="hidden" name="category_index" value="' + str(category_index) + '">'
+    print '    <input type="hidden" name="category_id" value="' + str(selected_category.id) + '">'
     if one_off:
         print '    <input type="hidden" name="one_off" value="yes">'
 
@@ -872,35 +891,41 @@ def print_voting_category(cursor):
     print '      </table>'
 
 
-def print_voting_choice(cursor):
+def print_voting_review(cursor):
     # Should tolerate no <code>user</code>.
 
     print '    <p>'
     print '        Ниже показан ваш выбор по категориям.'
     print '      </p>'
+    print '    <input type="hidden" name="category_index" value="review">'
 
     has_votes = False
 
     masterpieces = my.sql.get_named_tuples(cursor, '''
         select
-            categories.id category_id,
-            categories.name category_name,
+            votes.contest_category,
             masterpieces.*
-        from contest_categories categories
-            left join (select * from votes where votes.contest_round = %s and votes.user = %s) votes
-                on categories.id = votes.contest_category
-            left join masterpieces on votes.masterpiece = masterpieces.id
-        where categories.contest = %s and categories.nomination_source <> %s
-        order by categories.priority''',
-        (current_round_id, user.id if user else None, static.contest.id, static.nomination_sources.other.id))
-    for index, masterpiece in enumerate(masterpieces):
+        from
+            votes,
+            masterpieces
+        where
+            votes.contest_round = %s and
+            votes.user = %s and
+            votes.masterpiece = masterpieces.id''',
+        (current_round_id, user.id if user else None))
+    masterpieces_by_category_id = {}
+    for masterpiece in masterpieces:
+        masterpieces_by_category_id[masterpiece.contest_category] = masterpiece
+
+    for index, category in enumerate(available_categories):
+        masterpiece = masterpieces_by_category_id[category.id] if category.id in masterpieces_by_category_id else None
         print '    <div style="padding: 1ex;">'
-        print '        <b>' + escape(masterpiece.category_name) + '</b>'
+        print '        <b>' + escape(category.name) + '</b>'
         print '        ' + pages.voting.page_link(
-            '(переголосовать)' if masterpiece.content else '(проголосовать)',
+            '(переголосовать)' if masterpiece else '(проголосовать)',
             'category_index=' + str(index) + '&one_off=yes')
         print '        <div style="padding-left: 4ex;">'
-        if masterpiece.content:
+        if masterpiece:
             print_masterpiece(' '*12, masterpiece)
             has_votes = True
         else:
@@ -943,7 +968,7 @@ def print_voting(cursor):
     if category_index is not None:
         print_voting_category(cursor)
     else:
-        print_voting_choice(cursor)
+        print_voting_review(cursor)
 
 
 def process_voting(cursor):
@@ -961,7 +986,7 @@ def process_voting(cursor):
             cursor.execute('delete from votes where contest_round = %s and user = %s', (current_round_id, user.id))
             redirect_parameters['category_index'] = 'review'
         return
-    category_id = available_categories[category_index].id
+    category_id = form['category_id'].value
     has_voted = False
 
     if user and 'abstain' in form:
@@ -1059,10 +1084,8 @@ def print_results(cursor):
     print '          </div>'
     print '      </div>'
 
-    for category in static.contest_categories:
-        if category.is_hidden:
-            continue
-
+    list_available_categories(cursor)
+    for category in available_categories:
         print '    <div style="padding: 1ex;">'
         print '        <b>' + escape(category.name) + '</b>'
 
@@ -1799,11 +1822,28 @@ def main_with_cursor(cursor):
     print_footer()
 
 
+def print_maintenance_page(maintenance_message_html):
+    print 'Content-type: text/html; charset=UTF-8'
+    print ''
+    print '<!doctype html>'
+    print '<html><head>'
+    print '    <title>Сайт временно недоступен</title>'
+    print '  </head><body>'
+    print '    <H1>Сайт временно недоступен</H1>'
+    print '    ' + maintenance_message_html
+    print '  </body></html>'
+
+
 def main(contest_identifier):
     database = MySQLdb.connect(charset = 'utf8', use_unicode = False, **configuration.database)
     with my.sql.AutoCursor(database) as cursor:
         cursor.execute('set sql_mode = traditional')
         cursor.execute('set time_zone = \x27+4:00\x27')
-        static.init(cursor, contest_identifier)
-        main_with_cursor(cursor)
+
+        maintenance_message_html = my.sql.get_unique_one(cursor, 'select maintenance_message_html from engine')
+        if maintenance_message_html:
+            print_maintenance_page(maintenance_message_html)
+        else:
+            static.init(cursor, contest_identifier)
+            main_with_cursor(cursor)
 

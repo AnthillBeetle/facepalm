@@ -81,12 +81,9 @@ def init(cursor, contest_identifier):
         (contest.id,))
 
     global contest_categories
-    contest_categories = my.sql.get_indexed_named_tuples(cursor, '''
-        select contest_categories.*, nomination_source in (%s, %s) as is_hidden
-        from contest_categories
-        where contest = %s
-        order by priority''',
-        (nomination_sources.disabled.id, nomination_sources.other.id, contest.id))
+    contest_categories = my.sql.get_indexed_named_tuples(cursor,
+        'select * from contest_categories where contest = %s order by priority',
+        (contest.id,))
 
     global ideabox_sections
     ideabox_sections = my.sql.get_indexed_named_tuples(cursor,

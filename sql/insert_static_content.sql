@@ -138,13 +138,6 @@ insert into contests(godville_topic_id, identifier, name, pagelist_suffix, annou
 set @contest_id = (select id from contests where identifier = 'facepalm');
 insert into contest_categories(contest, nomination_source, priority, name, description) values(
     @contest_id,
-    (select id from nomination_sources where identifier = 'best'),
-    'A',
-    'Непревзойдённый фейспалм',
-    'когда рука тянется к лицу буквально на чувственном уровне, креатив неописуемо бессмыслен, неправилен и неадекватен'
-);
-insert into contest_categories(contest, nomination_source, priority, name, description) values(
-    @contest_id,
     @manual_nomination_source,
     2,
     'Ниже плинтуса',
@@ -191,6 +184,13 @@ insert into contest_categories(contest, nomination_source, priority, name, descr
     8,
     'Незамутнённое дарование',
     'тривиальнейшие идеи ясельного уровня (шутки про чукч и т.п.), часто со множеством грамматических ошибок'
+);
+insert into contest_categories(contest, nomination_source, priority, name, description) values(
+    @contest_id,
+    (select id from nomination_sources where identifier = 'best'),
+    'A',
+    'Непревзойдённый фейспалм',
+    'когда рука тянется к лицу буквально на чувственном уровне, креатив неописуемо бессмыслен, неправилен и неадекватен'
 );
 insert into contest_categories(contest, nomination_source, priority, name, description) values(
     @contest_id,

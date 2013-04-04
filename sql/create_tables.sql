@@ -16,6 +16,12 @@
 --- along with Facepalm web-engine. If not, see <http://www.gnu.org/licenses/>.
 
 
+create table engine(
+    id enum('') not null primary key,
+    maintenance_message_html text not null default ''
+);
+insert into engine values();
+
 create table user_roles(
     id int not null auto_increment primary key,
     identifier varchar(255) unique not null,
