@@ -1791,7 +1791,7 @@ def main_with_cursor(cursor):
 
     if selected_page.identifier == 'registration':
         check_registration(cursor)
-    elif selected_page.identifier == 'voting':
+    elif selected_page.identifier == 'voting' and current_round_id:
         prepare_voting(cursor)
 
     print_header()
