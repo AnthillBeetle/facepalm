@@ -1689,10 +1689,13 @@ def maint(cursor):
                 cursor.execute(
                     'delete from round_results where contest_round = %s',
                     (round,))
+                cursor.execute(
+                    'set @current_contest_round = %s, @current_contest_category = null',
+                    (round,))
                 cursor.execute('''
                     insert into round_results
-                        select * from round_results_view where contest_round = %s''',
-                    (round,))
+                        select @current_contest_round as contest_round, results.*
+                            from round_results_view_parametrized results''')
                 cursor.execute(
                     'delete from round_winners where contest_round = %s',
                     (round,))
