@@ -70,11 +70,21 @@ create table contests(
     prix_character_html varchar(255) not null,
     pagelist_suffix text not null
 );
+create table leagues(
+    id int not null auto_increment primary key,
+    identifier varchar(255) unique not null
+);
 create table contest_rounds(
     id int not null auto_increment primary key,
     contest int not null,
+    league int not null,
+    next int unique default null,
+    upper int default null,
     description text null,
-    foreign key(contest) references contests(id)
+    foreign key(contest) references contests(id),
+    foreign key(league) references leagues(id),
+    foreign key(next) references contest_rounds(id),
+    foreign key(upper) references contest_rounds(id)
 );
 create table contest_stages(
     id int not null auto_increment primary key,

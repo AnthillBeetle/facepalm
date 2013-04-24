@@ -55,6 +55,10 @@ where
 --- Contest structure
 
 
+insert into leagues(identifier) values('weekly');
+insert into leagues(identifier) values('seasonal');
+insert into leagues(identifier) values('annual');
+
 insert into nomination_sources(is_unique, identifier, description) values(false, 'disabled', 'категория недоступна для номинирования');
 insert into nomination_sources(is_unique, identifier, description) values(false, 'manual', 'категория выбирается вручную');
 insert into nomination_sources(is_unique, identifier, description) values(true, 'singleton', 'единственная категория');
