@@ -72,18 +72,20 @@ create table contests(
 );
 create table leagues(
     id int not null auto_increment primary key,
-    identifier varchar(255) unique not null
+    upper int default null,
+    identifier varchar(255) unique not null,
+    foreign key(upper) references leagues(id)
 );
 create table contest_rounds(
     id int not null auto_increment primary key,
     contest int not null,
     league int not null,
-    next int unique default null,
+    ordinal int not null,
     upper int default null,
     description text null,
+    unique key(contest, league, ordinal),
     foreign key(contest) references contests(id),
-    foreign key(league) references leagues(id),
-    foreign key(next) references contest_rounds(id),
+    foreign key(league) references leagues(id)
     foreign key(upper) references contest_rounds(id)
 );
 create table contest_stages(
