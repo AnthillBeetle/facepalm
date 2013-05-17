@@ -56,6 +56,10 @@ def init(cursor, contest_identifier):
         'select * from contests where identifier = %s',
         (contest_identifier,))
 
+    global leagues
+    leagues = my.sql.get_indexed_named_tuples(cursor,
+        'select * from leagues')
+
     global contest_stages
     contest_stages = my.sql.get_indexed_named_tuples(cursor,
         'select * from contest_stages order by priority')

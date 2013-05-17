@@ -83,7 +83,7 @@ create table contest_rounds(
     ordinal int not null,
     upper int default null,
     description text null,
-    unique key(contest, league, ordinal),
+    unique key(contest, league, ordinal), -- set ordinal-s beforehand
     foreign key(contest) references contests(id),
     foreign key(league) references leagues(id)
     foreign key(upper) references contest_rounds(id)

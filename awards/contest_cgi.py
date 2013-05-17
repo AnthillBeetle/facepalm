@@ -1720,6 +1720,40 @@ def maint(cursor):
 
             stages_has_ended = stages_has_ended or has_already_ended
 
+            following_round, league_id = my.sql.get_unique_row(cursor, '''
+                select following.id, preceding.league
+                from contest_rounds following right join contest_rounds preceding on
+                    following.contest = preceding.contest and
+                    following.league = preceding.league and
+                    following.ordinal = preceding.ordinal + 1
+                where preceding.id = %s''',
+                (round,))
+            if not following_round:
+                cursor.execute('''
+                    insert into contest_rounds(
+                        contest,
+                        league,
+                        ordinal,
+                        upper
+                    )
+                    select
+                        contest,
+                        league,
+                        ordinal + 1 as ordinal,
+                        upper
+                    from contest_rounds
+                    where id = %s''',
+                (round,))
+                following_round = cursor.connection.insert_id()
+
+                if league_id == static.leagues.weekly.id:
+                    cursor.execute('''
+                        insert into contest_rounds_and_stages(contest, round, stage, begins, ends)
+                        select contest, %s as round, stage, (begins + interval 7 day), (ends + interval 7 day)
+                        from contest_rounds_and_stages
+                        where round = %s''',
+                    (following_round, round))
+
             next_round = my.sql.get_unique_one(cursor, '''
                 select round
                 from contest_rounds_and_stages
