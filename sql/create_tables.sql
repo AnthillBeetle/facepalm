@@ -90,9 +90,10 @@ create table contest_rounds(
     upper int default null,
     reached_stage int default null,
     description text null,
-    unique key(contest, league, ordinal), -- set ordinal-s beforehand
+    unique key(id, contest),
+    unique key(contest, league, ordinal),
     foreign key(contest) references contests(id),
-    foreign key(league) references leagues(id)
+    foreign key(league) references leagues(id),
     foreign key(upper) references contest_rounds(id),
     foreign key(reached_stage) references contest_stages(id)
 );
