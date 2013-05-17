@@ -1720,14 +1720,18 @@ def maint(cursor):
 
             stages_has_ended = stages_has_ended or has_already_ended
 
-            following_round, league_id = my.sql.get_unique_row(cursor, '''
-                select following.id, preceding.league
-                from contest_rounds following right join contest_rounds preceding on
-                    following.contest = preceding.contest and
-                    following.league = preceding.league and
-                    following.ordinal = preceding.ordinal + 1
-                where preceding.id = %s''',
+            league_id, reached_stage, following_round = my.sql.get_unique_row(cursor, '''
+                select rounds.league, rounds.reached_stage, following.id
+                from contest_rounds rounds left join contest_rounds following on
+                    rounds.contest = following.contest and
+                    rounds.league = following.league and
+                    rounds.ordinal + 1 = following.ordinal
+                where rounds.id = %s''',
                 (round,))
+
+            if not reached_stage or static.contest_stages[reached_stage].priority < static.contest_stages[stage].priority:
+                cursor.execute('update contest_rounds set reached_stage = %s where id = %s', (stage, round))
+
             if not following_round:
                 cursor.execute('''
                     insert into contest_rounds(

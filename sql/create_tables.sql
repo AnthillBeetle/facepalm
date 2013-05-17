@@ -76,23 +76,25 @@ create table leagues(
     identifier varchar(255) unique not null,
     foreign key(upper) references leagues(id)
 );
+create table contest_stages(
+    id int not null auto_increment primary key,
+    priority varchar(255) unique not null,
+    identifier varchar(255) unique not null,
+    description text not null
+);
 create table contest_rounds(
     id int not null auto_increment primary key,
     contest int not null,
     league int not null,
     ordinal int not null,
     upper int default null,
+    reached_stage int default null,
     description text null,
     unique key(contest, league, ordinal), -- set ordinal-s beforehand
     foreign key(contest) references contests(id),
     foreign key(league) references leagues(id)
-    foreign key(upper) references contest_rounds(id)
-);
-create table contest_stages(
-    id int not null auto_increment primary key,
-    priority varchar(255) unique not null,
-    identifier varchar(255) unique not null,
-    description text not null
+    foreign key(upper) references contest_rounds(id),
+    foreign key(reached_stage) references contest_stages(id)
 );
 create table tenses(
     id int not null primary key,
