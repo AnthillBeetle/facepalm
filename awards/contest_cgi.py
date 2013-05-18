@@ -1022,117 +1022,125 @@ def process_voting(cursor):
 # Page: results
 
 
+def get_league_and_ordinal(cursor, round_id):
+    league_id, ordinal = my.sql.get_unique_row(cursor,
+        'select league, ordinal from contest_rounds where id = %s',
+        round_id)
+    return static.leagues[league_id], ordinal
+
+
 def print_results(cursor):
     global current_round_id
 
-    preview = False
-    results_query = '(select * from round_results where contest_round = %s and contest_category = %s)'
-    results_query_uses_variables = False
+    preview_round_id = get_current_round_id(cursor, static.contest_stages.voting)
+    if preview_round_id:
+        preview_league, preview_ordinal = get_league_and_ordinal(cursor, preview_round_id)
 
-    if 'ordinal' in form:
-        league = static.leagues.by_identifier(form['league'].value) if 'league' in form else static.leagues.weekly
-        selected_ordinal = int(form['ordinal'].value)
+    current_league = static.leagues.weekly
 
-        round_row = my.sql.get_unique_row(cursor, '''
-            select id, reached_stage
-            from contest_rounds
-            where contest = %s and league = %s and ordinal = %s''',
-            (static.contest.id, league.id, selected_ordinal))
-        if not round_row:
-            errors.append('Такого раунда голосования не существует.')
-            print_errors()
-            return
-        current_round_id, reached_stage_id = round_row
-        reached_stage_priority = static.contest_stages[reached_stage_id].priority if reached_stage_id else None
+    if 'ordinal' in form or 'league' in form:
+        if 'league' in form:
+            current_league = static.leagues.by_identifier(form['league'].value)
 
-        if reached_stage_priority < static.contest_stages.results.priority:
-            if reached_stage_priority < static.contest_stages.voting.priority:
-                errors.append('Данный раунд голосования ещё не начинался.')
+        if 'ordinal' in form:
+            current_ordinal = int(form['ordinal'].value)
+
+            round_row = my.sql.get_unique_row(cursor, '''
+                select id, reached_stage
+                from contest_rounds
+                where contest = %s and league = %s and ordinal = %s''',
+                (static.contest.id, current_league.id, current_ordinal))
+            if not round_row:
+                errors.append('Такого раунда голосования не существует.')
                 print_errors()
                 return
-            if static.user_actions.preview_results not in allowed_actions:
-                errors.append('Данный раунд голосования ещё не окончен.')
-                # ... и у вас недостаточно прав доступа для просмотра предварительных результатов.
+            current_round_id, reached_stage_id = round_row
+
+            if reached_stage_id != static.contest_stages.results.id and current_round_id != preview_round_id:
+                errors.append('Данный раунд голосования недоступен.')
                 print_errors()
                 return
-            preview = True
-            results_query = 'round_results_view_parametrized'
-            results_query_uses_variables = True
+        else:
+            current_round_id = None
     else:
-        if not current_round_id:
-            print '    <center><p>'
-            print '        Пока нет результатов.'
-            next_results_time = get_stage_next_time(cursor, static.contest_stages.results)
-            if next_results_time:
-                next_results_time_str = datetime2str(next_results_time, append_relative_day = True, append_when_weekday = True)
-                print '        <br>'
-                print '        Результаты будут объявлены в&nbsp;' + next_results_time_str + '.'
-            print '      </p></center>'
-            return
-
-        league_id, selected_ordinal = my.sql.get_unique_row(cursor,
-            'select league, ordinal from contest_rounds where id = %s',
-            current_round_id)
-        league = static.leagues[league_id]
+        if current_round_id:
+            current_league, current_ordinal = get_league_and_ordinal(cursor, current_round_id)
+        elif preview_round_id:
+            current_league, current_ordinal, current_round_id = preview_league, preview_ordinal, preview_round_id
 
     interval_type = collections.namedtuple('Range', ('minimum', 'maximum'))
     results_interval = interval_type(*my.sql.get_unique_row(cursor, '''
         select min(ordinal), max(ordinal)
         from contest_rounds
         where contest = %s and league = %s and reached_stage = %s''',
-        (static.contest.id, league.id, static.contest_stages.results.id)))
-    links_interval = interval_type(
-        max(results_interval.minimum, min(selected_ordinal - 4, results_interval.maximum - 8)),
-        min(results_interval.maximum, max(selected_ordinal + 4, results_interval.minimum + 8)))
+        (static.contest.id, current_league.id, static.contest_stages.results.id)))
+    if results_interval == (None, None):
+        print '    <center><p>'
+        print '        Пока нет результатов.'
+        print '      </p></center>'
+        return
+    if not current_round_id:
+        current_ordinal = results_interval.maximum
+        current_round_id = my.sql.get_unique_one(cursor, '''
+            select id from contest_rounds where contest = %s and league = %s and ordinal = %s''',
+            (static.contest.id, current_league.id, current_ordinal))
 
-    def print_ordinal_link(
-        print_ordinal,
-        name = None,
-        __query_head = 'league=' + league.identifier + '&ordinal=' if league != static.leagues.weekly else 'ordinal='
-    ):
-        if not name:
-            name = str(print_ordinal)
-        if print_ordinal != selected_ordinal:
-            print '        ' + selected_page.page_link(name, __query_head + str(print_ordinal))
+    if results_interval.maximum > results_interval.minimum:
+        links_interval = interval_type(
+            max(results_interval.minimum, min(current_ordinal - 4, results_interval.maximum - 8)),
+            min(results_interval.maximum, max(current_ordinal + 4, results_interval.minimum + 8)))
+
+        def print_ordinal_link(
+            print_ordinal,
+            name = None,
+            __query_head = 'league=' + current_league.identifier + '&ordinal=' if current_league != static.leagues.weekly else 'ordinal='
+        ):
+            if not name:
+                name = str(print_ordinal)
+            if print_ordinal != current_ordinal:
+                print '        ' + selected_page.page_link(name, __query_head + str(print_ordinal))
+            else:
+                print '        <b>' + name + '</b>'
+
+        print '    <p style="text-align: center;">'
+
+        if current_ordinal > results_interval.minimum:
+            print_ordinal_link(current_ordinal - 1, '&nbsp;←&nbsp;')
         else:
-            print '        <b>' + name + '</b>'
+            print '        &nbsp;&nbsp;&nbsp;&nbsp;'
 
-    print '    <p style="text-align: center;">'
+        if links_interval.minimum > results_interval.minimum:
+            print_ordinal_link(results_interval.minimum)
 
-    if selected_ordinal > results_interval.minimum:
-        print_ordinal_link(selected_ordinal - 1, '&nbsp;←&nbsp;')
-    else:
-        print '        &nbsp;&nbsp;&nbsp;&nbsp;'
+        if links_interval.minimum - 1 > results_interval.minimum:
+            print '        …'
 
-    if links_interval.minimum > results_interval.minimum:
-        print_ordinal_link(results_interval.minimum)
+        for link_ordinal in xrange(links_interval.minimum, links_interval.maximum + 1):
+            print_ordinal_link(link_ordinal)
 
-    if links_interval.minimum - 1 > results_interval.minimum:
-        print '        …'
+        if links_interval.maximum + 1 < results_interval.maximum:
+            print '        …'
 
-    for link_ordinal in xrange(links_interval.minimum, links_interval.maximum + 1):
-        print_ordinal_link(link_ordinal)
+        if links_interval.maximum < results_interval.maximum:
+            print_ordinal_link(results_interval.maximum)
 
-    if links_interval.maximum + 1 < results_interval.maximum:
-        print '        …'
-
-    if links_interval.maximum < results_interval.maximum:
-        print_ordinal_link(results_interval.maximum)
-
-    if static.user_actions.preview_results in allowed_actions:
-        preview_round_id = get_current_round_id(cursor, static.contest_stages.voting)
-        if preview_round_id:
-            preview_ordinal = my.sql.get_unique_one(cursor, 'select ordinal from contest_rounds where id = %s', preview_round_id)
+        if preview_league == current_league and preview_ordinal > results_interval.maximum:
             print_ordinal_link(preview_ordinal, '<i>' + str(preview_ordinal) + '</i>')
 
-    if selected_ordinal < results_interval.maximum:
-        print_ordinal_link(selected_ordinal + 1, '&nbsp;→&nbsp;')
-    else:
-        print '        &nbsp;&nbsp;&nbsp;&nbsp;'
+        if current_ordinal < results_interval.maximum:
+            print_ordinal_link(current_ordinal + 1, '&nbsp;→&nbsp;')
+        else:
+            print '        &nbsp;&nbsp;&nbsp;&nbsp;'
 
-    print '      </p>'
+        print '      </p>'
 
     print_round_timing(cursor)
+
+    if current_round_id == preview_round_id and static.user_actions.preview_results not in allowed_actions:
+        print '    <center><p>'
+        print '        Пока нет результатов.'
+        print '      </p></center>'
+        return
 
     print '    <div style="padding: 1ex;">'
     print '        <b>Обозначения</b>'
@@ -1143,6 +1151,13 @@ def print_results(cursor):
     print '              </tr></table>'
     print '          </div>'
     print '      </div>'
+
+    if current_round_id == preview_round_id:
+        results_query = 'round_results_view_parametrized'
+        results_query_uses_variables = True
+    else:
+        results_query = '(select * from round_results where contest_round = %s and contest_category = %s)'
+        results_query_uses_variables = False
 
     list_available_categories(cursor)
     for category in available_categories:
@@ -1188,7 +1203,7 @@ def print_results(cursor):
                 masterpieces.id
             limit 3''',
             results_query_parameters + (current_round_id, category.id))
-        if preview:
+        if current_round_id == preview_round_id:
             winning_score = masterpieces[0].score
             if len(masterpieces) >= 3 and masterpieces[2].score == winning_score:
                 winning_score = total_score
@@ -1196,7 +1211,7 @@ def print_results(cursor):
             if not masterpiece.score:
                 continue
 
-            is_winner = (masterpiece.score == winning_score) if preview else masterpiece.is_winner
+            is_winner = (masterpiece.score == winning_score) if current_round_id == preview_round_id else masterpiece.is_winner
 
             registered_percentage = str(int(round(100*masterpiece.registered_score/total_score)))
             anonymous_score = float(masterpiece.score) - masterpiece.registered_score
