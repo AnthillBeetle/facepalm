@@ -1025,57 +1025,112 @@ def process_voting(cursor):
 def print_results(cursor):
     global current_round_id
 
+    preview = False
     results_query = '(select * from round_results where contest_round = %s and contest_category = %s)'
     results_query_uses_variables = False
 
-    preview = 'round' in form and form['round'].value == 'running'
-    if preview:
-        if static.user_actions.preview_results not in allowed_actions:
-            errors.append('Недостаточно прав доступа для просмотра предварительных результатов.')
+    if 'ordinal' in form:
+        league = static.leagues.by_identifier(form['league'].value) if 'league' in form else static.leagues.weekly
+        selected_ordinal = int(form['ordinal'].value)
+
+        round_row = my.sql.get_unique_row(cursor, '''
+            select id, reached_stage
+            from contest_rounds
+            where contest = %s and league = %s and ordinal = %s''',
+            (static.contest.id, league.id, selected_ordinal))
+        if not round_row:
+            errors.append('Такого раунда голосования не существует.')
             print_errors()
             return
-        current_round_id = get_current_round_id(cursor, static.contest_stages.voting)
+        current_round_id, reached_stage_id = round_row
+        reached_stage_priority = static.contest_stages[reached_stage_id].priority if reached_stage_id else None
 
-        if 'method' in form and form['method'].value == 'old':
-            results_query = '(select * from round_results_view where contest_round = %s and contest_category = %s)'
-        else:
+        if reached_stage_priority < static.contest_stages.results.priority:
+            if reached_stage_priority < static.contest_stages.voting.priority:
+                errors.append('Данный раунд голосования ещё не начинался.')
+                print_errors()
+                return
+            if static.user_actions.preview_results not in allowed_actions:
+                errors.append('Данный раунд голосования ещё не окончен.')
+                # ... и у вас недостаточно прав доступа для просмотра предварительных результатов.
+                print_errors()
+                return
+            preview = True
             results_query = 'round_results_view_parametrized'
             results_query_uses_variables = True
-
-        last_url = script_name + '?page=' + selected_page.identifier
-        print '    <p style="text-align: center;">'
-        print '        <a class="pagename" href="' + last_url + '">последние</a> |'
-        print '        <b>предварительные</b>'
-        print '      </p>'
-
-        if not current_round_id:
-            print '    <center><p>'
-            print '        Голосование окончено. Результаты последнего голосования приведены на странице'
-            print '        «<a class="pagename" href="' + last_url + '">последние</a>».'
-            print '      </p></center>'
-            return
     else:
-        if static.user_actions.preview_results in allowed_actions:
-            preview_url = script_name + '?page=' + selected_page.identifier + '&round=running'
-            print '    <p style="text-align: center;">'
-            print '        <b>последние</b> |'
-            print '        <a class="pagename" href="' + preview_url + '">предварительные</a>'
-            print '      </p>'
-
-        if 'round' in form:
-            current_round_id = int(form['round'].value)
-
         if not current_round_id:
             print '    <center><p>'
-
             print '        Пока нет результатов.'
             next_results_time = get_stage_next_time(cursor, static.contest_stages.results)
             if next_results_time:
+                next_results_time_str = datetime2str(next_results_time, append_relative_day = True, append_when_weekday = True)
                 print '        <br>'
-                print '        Результаты будут объявлены в&nbsp;' + datetime2str(next_results_time, append_relative_day = True, append_when_weekday = True) + '.'
-            
+                print '        Результаты будут объявлены в&nbsp;' + next_results_time_str + '.'
             print '      </p></center>'
             return
+
+        league_id, selected_ordinal = my.sql.get_unique_row(cursor,
+            'select league, ordinal from contest_rounds where id = %s',
+            current_round_id)
+        league = static.leagues[league_id]
+
+    interval_type = collections.namedtuple('Range', ('minimum', 'maximum'))
+    results_interval = interval_type(*my.sql.get_unique_row(cursor, '''
+        select min(ordinal), max(ordinal)
+        from contest_rounds
+        where contest = %s and league = %s and reached_stage = %s''',
+        (static.contest.id, league.id, static.contest_stages.results.id)))
+    links_interval = interval_type(
+        max(results_interval.minimum, min(selected_ordinal - 4, results_interval.maximum - 8)),
+        min(results_interval.maximum, max(selected_ordinal + 4, results_interval.minimum + 8)))
+
+    def print_ordinal_link(
+        print_ordinal,
+        name = None,
+        __query_head = 'league=' + league.identifier + '&ordinal=' if league != static.leagues.weekly else 'ordinal='
+    ):
+        if not name:
+            name = str(print_ordinal)
+        if print_ordinal != selected_ordinal:
+            print '        ' + selected_page.page_link(name, __query_head + str(print_ordinal))
+        else:
+            print '        <b>' + name + '</b>'
+
+    print '    <p style="text-align: center;">'
+
+    if selected_ordinal > results_interval.minimum:
+        print_ordinal_link(selected_ordinal - 1, '&nbsp;←&nbsp;')
+    else:
+        print '        &nbsp;&nbsp;&nbsp;&nbsp;'
+
+    if links_interval.minimum > results_interval.minimum:
+        print_ordinal_link(results_interval.minimum)
+
+    if links_interval.minimum - 1 > results_interval.minimum:
+        print '        …'
+
+    for link_ordinal in xrange(links_interval.minimum, links_interval.maximum + 1):
+        print_ordinal_link(link_ordinal)
+
+    if links_interval.maximum + 1 < results_interval.maximum:
+        print '        …'
+
+    if links_interval.maximum < results_interval.maximum:
+        print_ordinal_link(results_interval.maximum)
+
+    if static.user_actions.preview_results in allowed_actions:
+        preview_round_id = get_current_round_id(cursor, static.contest_stages.voting)
+        if preview_round_id:
+            preview_ordinal = my.sql.get_unique_one(cursor, 'select ordinal from contest_rounds where id = %s', preview_round_id)
+            print_ordinal_link(preview_ordinal, '<i>' + str(preview_ordinal) + '</i>')
+
+    if selected_ordinal < results_interval.maximum:
+        print_ordinal_link(selected_ordinal + 1, '&nbsp;→&nbsp;')
+    else:
+        print '        &nbsp;&nbsp;&nbsp;&nbsp;'
+
+    print '      </p>'
 
     print_round_timing(cursor)
 
