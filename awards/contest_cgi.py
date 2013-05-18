@@ -1677,7 +1677,7 @@ def print_errors():
 
 
 def maint(cursor):
-    while True:
+    for iteration_index in range(0, 4):
         cursor.execute('''
             select stage, round
             from contest_rounds_and_stages
