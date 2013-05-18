@@ -757,14 +757,14 @@ def prepare_voting(cursor):
 
     list_available_categories(cursor)
     
-    category_index = 0
+    category_index = 0 if available_categories else None
     if 'category_index' in form:
         if form['category_index'].value == 'review':
             category_index = None
         else:
-            category_index = int(form['category_index'].value)
-            if category_index < 0 or category_index >= len(available_categories):
-                category_index = 0
+            category_index_candidate = int(form['category_index'].value)
+            if category_index_candidate >= 0 and category_index_candidate < len(available_categories):
+                category_index = category_index_candidate
     if category_index is not None:
         page_subtitle = available_categories[category_index].name
 
@@ -947,6 +947,11 @@ def print_voting(cursor):
     print_round_timing(cursor)
 
     print '    <center><p>'
+
+    if not available_categories:
+        print '        Выбирать пока не из чего — ничего не номинировано.'
+        print '      </p></center>'
+        return
 
     for index, category in enumerate(available_categories):
         if index == category_index:
