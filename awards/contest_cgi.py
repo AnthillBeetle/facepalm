@@ -813,6 +813,7 @@ def print_voting_category(cursor):
     print '    <table style="border-collapse: collapse; width: 100%;">'
 
     show_voted_only = (
+        user and
         selected_category.nomination_source == static.nomination_sources.best.id and
         not ('show' in form and form['show'].value == 'all'))
 
