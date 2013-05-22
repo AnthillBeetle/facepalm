@@ -1035,6 +1035,8 @@ def print_results(cursor):
     preview_round_id = get_current_round_id(cursor, static.contest_stages.voting)
     if preview_round_id:
         preview_league, preview_ordinal = get_league_and_ordinal(cursor, preview_round_id)
+    else:
+        preview_league, preview_ordinal = None, None
 
     current_league = static.leagues.weekly
 
@@ -1085,7 +1087,7 @@ def print_results(cursor):
             select id from contest_rounds where contest = %s and league = %s and ordinal = %s''',
             (static.contest.id, current_league.id, current_ordinal))
 
-    if results_interval.maximum > results_interval.minimum:
+    if max(results_interval.maximum, preview_ordinal) > results_interval.minimum:
         links_interval = interval_type(
             max(results_interval.minimum, min(current_ordinal - 4, results_interval.maximum - 8)),
             min(results_interval.maximum, max(current_ordinal + 4, results_interval.minimum + 8)))
