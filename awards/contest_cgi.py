@@ -1072,45 +1072,60 @@ def print_results(cursor):
             current_league, current_ordinal, current_round_id = preview_league, preview_ordinal, preview_round_id
 
     interval_type = collections.namedtuple('Range', ('minimum', 'maximum'))
-    results_interval = interval_type(*my.sql.get_unique_row(cursor, '''
-        select min(ordinal), max(ordinal)
-        from contest_rounds
-        where contest = %s and league = %s and reached_stage = %s''',
-        (static.contest.id, current_league.id, static.contest_stages.results.id)))
-    if results_interval == (None, None):
-        print '    <center><p>'
-        print '        Пока нет результатов.'
-        print '      </p></center>'
-        return
-    if not current_round_id:
-        current_ordinal = results_interval.maximum
-        current_round_id = my.sql.get_unique_one(cursor, '''
-            select id from contest_rounds where contest = %s and league = %s and ordinal = %s''',
-            (static.contest.id, current_league.id, current_ordinal))
 
-    if max(results_interval.maximum, preview_ordinal) > results_interval.minimum:
-        links_interval = interval_type(
-            max(results_interval.minimum, min(current_ordinal - 4, results_interval.maximum - 8)),
-            min(results_interval.maximum, max(current_ordinal + 4, results_interval.minimum + 8)))
+    print '    <p style="text-align: center;">'
+    print '        &nbsp;&nbsp;&nbsp;&nbsp;'
+
+    for links_league in (static.leagues.weekly, static.leagues.seasonal):
+        results_interval = interval_type(*my.sql.get_unique_row(cursor, '''
+            select min(ordinal), max(ordinal)
+            from contest_rounds
+            where contest = %s and league = %s and reached_stage = %s''',
+            (static.contest.id, links_league.id, static.contest_stages.results.id)))
+        if preview_league == links_league:
+            results_interval = interval_type(
+                results_interval.minimum if results_interval.minimum else preview_ordinal,
+                max(results_interval.maximum, preview_ordinal))
+        if results_interval == interval_type(None, None):
+            continue
+
+        if not current_round_id:
+            current_league = links.league
+            current_ordinal = results_interval.maximum
+            current_round_id = my.sql.get_unique_one(cursor, '''
+                select id from contest_rounds where contest = %s and league = %s and ordinal = %s''',
+                (static.contest.id, current_league.id, current_ordinal))
+
+        if links_league == current_league:
+            links_interval = interval_type(
+                max(results_interval.minimum, min(current_ordinal - 4, results_interval.maximum - 8)),
+                min(results_interval.maximum, max(current_ordinal + 4, results_interval.minimum + 8)))
+        else:
+            links_interval = interval_type(
+                max(results_interval.minimum, results_interval.maximum - 8),
+                results_interval.maximum)
 
         def print_ordinal_link(
             print_ordinal,
             name = None,
-            __query_head = 'league=' + current_league.identifier + '&ordinal=' if current_league != static.leagues.weekly else 'ordinal='
+            __query_head = (
+                ('league=' + links_league.identifier + '&' if links_league != static.leagues.weekly else '')
+                + 'ordinal='
+            )
         ):
             if not name:
                 name = str(print_ordinal)
-            if print_ordinal != current_ordinal:
-                print '        ' + selected_page.page_link(name, __query_head + str(print_ordinal))
-            else:
+            if links_league == preview_league and print_ordinal == preview_ordinal:
+                name = '<i>' + name + '</i>'
+            if links_league == current_league and print_ordinal == current_ordinal:
                 print '        <b>' + name + '</b>'
+            else:
+                print '        ' + selected_page.page_link(name, __query_head + str(print_ordinal))
 
-        print '    <p style="text-align: center;">'
+        print escape(links_league.selector_prefix) + ':'
 
-        if current_ordinal > results_interval.minimum:
+        if links_league == current_league and current_ordinal > results_interval.minimum:
             print_ordinal_link(current_ordinal - 1, '&nbsp;←&nbsp;')
-        else:
-            print '        &nbsp;&nbsp;&nbsp;&nbsp;'
 
         if links_interval.minimum > results_interval.minimum:
             print_ordinal_link(results_interval.minimum)
@@ -1127,15 +1142,12 @@ def print_results(cursor):
         if links_interval.maximum < results_interval.maximum:
             print_ordinal_link(results_interval.maximum)
 
-        if preview_league == current_league and preview_ordinal > results_interval.maximum:
-            print_ordinal_link(preview_ordinal, '<i>' + str(preview_ordinal) + '</i>')
-
-        if current_ordinal < results_interval.maximum:
+        if links_league == current_league and current_ordinal < results_interval.maximum:
             print_ordinal_link(current_ordinal + 1, '&nbsp;→&nbsp;')
-        else:
-            print '        &nbsp;&nbsp;&nbsp;&nbsp;'
 
-        print '      </p>'
+        print '        &nbsp;&nbsp;&nbsp;&nbsp;'
+
+    print '      </p>'
 
     print_round_timing(cursor)
 

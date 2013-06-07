@@ -179,3 +179,17 @@ create view round_winners_view as
         results.contest_category = multiples.contest_category and
         multiples.multiple_count <= 2;
 
+
+----
+
+
+create view round_winners_info as
+    select
+        winners.*,
+        masterpieces.contest,
+        masterpieces.user,
+        masterpieces.added
+    from
+        round_winners winners inner join masterpieces on
+            winners.masterpiece = masterpieces.id;
+

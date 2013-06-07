@@ -74,6 +74,7 @@ create table leagues(
     id int not null auto_increment primary key,
     upper int default null,
     identifier varchar(255) unique not null,
+    selector_prefix text not null,
     foreign key(upper) references leagues(id)
 );
 create table contest_stages(
