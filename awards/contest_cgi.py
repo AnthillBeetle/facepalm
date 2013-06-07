@@ -1074,9 +1074,11 @@ def print_results(cursor):
     interval_type = collections.namedtuple('Range', ('minimum', 'maximum'))
 
     print '    <p style="text-align: center;">'
-    print '        &nbsp;&nbsp;&nbsp;&nbsp;'
 
     for links_league in (static.leagues.weekly, static.leagues.seasonal):
+        if links_league != static.leagues.weekly:
+            print '        &nbsp; | &nbsp;'
+
         results_interval = interval_type(*my.sql.get_unique_row(cursor, '''
             select min(ordinal), max(ordinal)
             from contest_rounds
@@ -1144,8 +1146,6 @@ def print_results(cursor):
 
         if links_league == current_league and current_ordinal < results_interval.maximum:
             print_ordinal_link(current_ordinal + 1, '&nbsp;→&nbsp;')
-
-        print '        &nbsp;&nbsp;&nbsp;&nbsp;'
 
     print '      </p>'
 

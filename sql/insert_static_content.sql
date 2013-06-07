@@ -55,9 +55,9 @@ where
 --- Contest structure
 
 
-insert into leagues(identifier, upper, selector_prefix) values('annual', null, 'годы');
-insert into leagues(identifier, upper, selector_prefix) values('seasonal', last_insert_id(), 'сезоны');
-insert into leagues(identifier, upper, selector_prefix) values('weekly', last_insert_id(), 'недели');
+insert into leagues(identifier, upper, selector_prefix) values('annual', null, 'год');
+insert into leagues(identifier, upper, selector_prefix) values('seasonal', last_insert_id(), 'сезон');
+insert into leagues(identifier, upper, selector_prefix) values('weekly', last_insert_id(), 'неделя');
 
 insert into nomination_sources(is_unique, identifier, description) values(false, 'disabled', 'категория недоступна для номинирования');
 insert into nomination_sources(is_unique, identifier, description) values(false, 'manual', 'категория выбирается вручную');
