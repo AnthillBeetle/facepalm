@@ -1092,7 +1092,7 @@ def print_results(cursor):
             continue
 
         if not current_round_id:
-            current_league = links.league
+            current_league = links_league
             current_ordinal = results_interval.maximum
             current_round_id = my.sql.get_unique_one(cursor, '''
                 select id from contest_rounds where contest = %s and league = %s and ordinal = %s''',
