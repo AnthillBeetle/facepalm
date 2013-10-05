@@ -85,7 +85,9 @@ insert into ideabox_sections(priority, identifier, godville_section_name, short_
 insert into ideabox_sections(priority, identifier, godville_section_name, short_name)
     values(2, 'status', 'Вести', 'Весть');
 insert into ideabox_sections(priority, identifier, godville_section_name, short_name)
-    values(3, 'duel', 'Хроника дуэлей', 'Хроника');
+    values(33, 'duel', 'Дуэли', 'Хроника дуэли');
+insert into ideabox_sections(priority, identifier, godville_section_name, short_name)
+    values(36, 'dungeon', 'Подземелья', 'Хроника подземелья');
 insert into ideabox_sections(priority, identifier, godville_section_name, short_name)
     values(4, 'quest', 'Задания', 'Задание');
 insert into ideabox_sections(priority, identifier, godville_section_name, short_name, prefix)
@@ -107,7 +109,7 @@ insert into ideabox_sections(priority, identifier, godville_section_name, godvil
 insert into ideabox_sections(priority, identifier, godville_section_name, godville_subsection_name, short_name, prefix)
     values(76, 'talisman', 'Снаряжение', 'Талисман', 'Снаряжение/Талисман', 'Талисман');
 insert into ideabox_sections(priority, identifier, godville_section_name, short_name, prefix)
-    values(8, 'newspaper', 'Новости для газеты', 'Новость', 'Новость');
+    values(8, 'newspaper', 'Тексты для газеты', 'Новость', 'Новость');
 insert into ideabox_sections(priority, identifier, godville_section_name, short_name, prefix)
     values(9, 'questionable', 'Сомнительный контент', 'Сомнительный контент', 'Обсуждаемое');
 insert into ideabox_sections(priority, identifier, godville_section_name, short_name)
