@@ -1075,7 +1075,7 @@ def print_results(cursor):
 
     print '    <p style="text-align: center;">'
 
-    for links_league in (static.leagues.weekly, static.leagues.seasonal):
+    for links_league in (static.leagues.weekly, static.leagues.seasonal, static.leagues.annual):
         if links_league != static.leagues.weekly:
             print '        &nbsp; | &nbsp;'
 
@@ -1084,6 +1084,7 @@ def print_results(cursor):
             from contest_rounds
             where contest = %s and league = %s and reached_stage = %s''',
             (static.contest.id, links_league.id, static.contest_stages.results.id)))
+            # TODO: fix reached_stage, the rest will follow
         if preview_league == links_league:
             results_interval = interval_type(
                 results_interval.minimum if results_interval.minimum else preview_ordinal,
