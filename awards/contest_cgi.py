@@ -513,12 +513,16 @@ def print_round_timing(cursor):
             print '        Результаты голосования за креатив, номинированный'
         print '        с&nbsp;' + date2str(nomination.begins) +' по&nbsp;' + date2endstr(nomination.ends) + '.<br>'
     else:
-        round_description = my.sql.get_unique_one(cursor, 'select description from contest_rounds where id = %s', (current_round_id,))
-        if round_description:
-            if selected_page == pages.voting:
-                print '        Голосование за ' + escape(round_description) + '.<br>'
-            elif selected_page == pages.results:
-                print '        Результаты голосования за ' + escape(round_description) + '.<br>'
+        round_description_prefices = {
+            pages.review.id: 'Рецензирование перед голосованием',
+            pages.voting.id: 'Голосование',
+            pages.results.id: 'Результаты голосования',
+        };
+        round_description = my.sql.get_unique_one(cursor,
+            'select description from contest_rounds where id = %s',
+            (current_round_id,))
+        if round_description and selected_page.id in round_description_prefices:
+            print '        ' + round_description_prefices[selected_page.id] + ' за ' + escape(round_description) + '.<br>'
     if stages.voting.id in current_stages:
         voting = current_stages[stages.voting.id]
         if selected_page in (pages.nomination, pages.review):
