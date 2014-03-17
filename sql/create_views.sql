@@ -16,6 +16,22 @@
 --- along with Facepalm web-engine. If not, see <http://www.gnu.org/licenses/>.
 
 
+create function get_contest() returns integer no sql return @current_contest;
+create function get_league() returns integer no sql return @current_league;
+create function get_stage_priority_minimum() returns varchar(255) no sql return @current_stage_priority_minimum;
+create function get_stage_priority_maximum() returns varchar(255) no sql return @current_stage_priority_maximum;
+
+create view selector_rounds_parametrized as
+    select id, ordinal
+    from contest_rounds
+    where contest = get_contest() and league = get_league() and reached_stage in
+        (select id from contest_stages where
+            priority between get_stage_priority_minimum() and get_stage_priority_maximum());
+
+
+---
+
+
 create function get_contest_round() returns integer no sql return @current_contest_round;
 create function get_contest_category() returns integer no sql return @current_contest_category;
 
