@@ -1023,112 +1023,101 @@ def process_voting(cursor):
 # Page: results
 
 
-def get_league_and_ordinal(cursor, round_id):
+round_coordinates_type = collections.namedtuple('RoundCoordinates', ('league', 'ordinal'))
+
+
+def get_round_coordinates(cursor, round_id):
     league_id, ordinal = my.sql.get_unique_row(cursor,
         'select league, ordinal from contest_rounds where id = %s',
         round_id)
-    return static.leagues[league_id], ordinal
+    return round_coordinates_type(static.leagues[league_id], ordinal)
 
 
-def print_results(cursor):
+def get_form_round(cursor):
+    league = static.leagues.by_identifier(form['league'].value) if 'league' in form else static.leagues.weekly
+
+    if 'ordinal' in form:
+        ordinal = int(form['ordinal'].value)
+    else:
+        ordinal = my.sql.get_unique_one(cursor, '''
+            select max(ordinal)
+            from contest_rounds
+            where contest = %s and league = %s and reached_stage in
+                (select id from contest_stages where priority >= %s)''',
+            (static.contest.id, league.id, static.contest_stages.voting.priority))
+
+    round_id = my.sql.get_unique_one(cursor, '''
+        select id
+        from contest_rounds
+        where contest = %s and league = %s and ordinal = %s and reached_stage in
+            (select id from contest_stages where priority >= %s)''',
+        (static.contest.id, league.id, ordinal, static.contest_stages.voting.priority))
+
+    return round_id, round_coordinates_type(league, ordinal)
+
+
+def do_round_selector(cursor):
     global current_round_id
 
-    preview_round_id = get_current_round_id(cursor, static.contest_stages.voting)
-    if preview_round_id:
-        preview_league, preview_ordinal = get_league_and_ordinal(cursor, preview_round_id)
-    else:
-        preview_league, preview_ordinal = None, None
-
-    current_league = static.leagues.weekly
-
     if 'ordinal' in form or 'league' in form:
-        if 'league' in form:
-            current_league = static.leagues.by_identifier(form['league'].value)
-
-        if 'ordinal' in form:
-            current_ordinal = int(form['ordinal'].value)
-
-            round_row = my.sql.get_unique_row(cursor, '''
-                select id, reached_stage
-                from contest_rounds
-                where contest = %s and league = %s and ordinal = %s''',
-                (static.contest.id, current_league.id, current_ordinal))
-            if not round_row:
-                errors.append('Такого раунда голосования не существует.')
-                print_errors()
-                return
-            current_round_id, reached_stage_id = round_row
-
-            if reached_stage_id != static.contest_stages.results.id and current_round_id != preview_round_id:
-                errors.append('Данный раунд голосования недоступен.')
-                print_errors()
-                return
-        else:
-            current_round_id = None
+        current_round_id, current_coordinates = get_form_round(cursor)
+    elif current_round_id:
+        current_coordinates = get_round_coordinates(cursor, current_round_id)
     else:
-        if current_round_id:
-            current_league, current_ordinal = get_league_and_ordinal(cursor, current_round_id)
-        elif preview_round_id:
-            current_league, current_ordinal, current_round_id = preview_league, preview_ordinal, preview_round_id
+        current_round_id, current_coordinates = get_form_round(cursor)  # default values
+
+    if not current_round_id:
+        errors.append('Данный раунд голосования недоступен.')
+        print_errors()
+        return
 
     interval_type = collections.namedtuple('Range', ('minimum', 'maximum'))
 
+    voting_round_id = get_current_round_id(cursor, static.contest_stages.voting)
+    voting_coordinates = get_round_coordinates(cursor, voting_round_id) if voting_round_id else None
+
     print '    <p style="text-align: center;">'
 
-    for links_league in (static.leagues.weekly, static.leagues.seasonal, static.leagues.annual):
-        if links_league != static.leagues.weekly:
+    for print_league in (static.leagues.weekly, static.leagues.seasonal, static.leagues.annual) if current_round_id else ():
+        if print_league != static.leagues.weekly:
             print '        &nbsp; | &nbsp;'
 
         results_interval = interval_type(*my.sql.get_unique_row(cursor, '''
             select min(ordinal), max(ordinal)
             from contest_rounds
-            where contest = %s and league = %s and reached_stage = %s''',
-            (static.contest.id, links_league.id, static.contest_stages.results.id)))
-            # TODO: fix reached_stage, the rest will follow
-        if preview_league == links_league:
-            results_interval = interval_type(
-                results_interval.minimum if results_interval.minimum else preview_ordinal,
-                max(results_interval.maximum, preview_ordinal))
+            where contest = %s and league = %s and reached_stage in
+                (select id from contest_stages where priority >= %s)''',
+            (static.contest.id, print_league.id, static.contest_stages.voting.priority)))
         if results_interval == interval_type(None, None):
             continue
 
-        if not current_round_id:
-            current_league = links_league
-            current_ordinal = results_interval.maximum
-            current_round_id = my.sql.get_unique_one(cursor, '''
-                select id from contest_rounds where contest = %s and league = %s and ordinal = %s''',
-                (static.contest.id, current_league.id, current_ordinal))
-
-        if links_league == current_league:
-            links_interval = interval_type(
-                max(results_interval.minimum, min(current_ordinal - 4, results_interval.maximum - 8)),
-                min(results_interval.maximum, max(current_ordinal + 4, results_interval.minimum + 8)))
-        else:
-            links_interval = interval_type(
-                max(results_interval.minimum, results_interval.maximum - 8),
-                results_interval.maximum)
+        central_ordinal = current_coordinates.ordinal if print_league == current_coordinates.league else results_interval.maximum
+        links_interval = interval_type(
+            max(results_interval.minimum, min(central_ordinal - 4, results_interval.maximum - 8)),
+            min(results_interval.maximum, max(central_ordinal + 4, results_interval.minimum + 8)))
 
         def print_ordinal_link(
             print_ordinal,
             name = None,
             __query_head = (
-                ('league=' + links_league.identifier + '&' if links_league != static.leagues.weekly else '')
+                ('league=' + print_league.identifier + '&' if print_league != static.leagues.weekly else '')
                 + 'ordinal='
             )
         ):
             if not name:
                 name = str(print_ordinal)
-            if links_league == preview_league and print_ordinal == preview_ordinal:
+            print_coordinates = round_coordinates_type(print_league, print_ordinal)
+            if print_coordinates == voting_coordinates:
                 name = '<i>' + name + '</i>'
-            if links_league == current_league and print_ordinal == current_ordinal:
+            if print_coordinates == current_coordinates:
                 print '        <b>' + name + '</b>'
             else:
                 print '        ' + selected_page.page_link(name, __query_head + str(print_ordinal))
 
-        print escape(links_league.selector_prefix) + ':'
+        print escape(print_league.selector_prefix) + ':'
 
-        if links_league == current_league and current_ordinal > results_interval.minimum:
-            print_ordinal_link(current_ordinal - 1, '&nbsp;←&nbsp;')
+        if print_league == current_coordinates.league and current_coordinates.ordinal > results_interval.minimum:
+            print_ordinal_link(current_coordinates.ordinal - 1, '&nbsp;←&nbsp;')
 
         if links_interval.minimum > results_interval.minimum:
             print_ordinal_link(results_interval.minimum)
@@ -1145,12 +1134,20 @@ def print_results(cursor):
         if links_interval.maximum < results_interval.maximum:
             print_ordinal_link(results_interval.maximum)
 
-        if links_league == current_league and current_ordinal < results_interval.maximum:
-            print_ordinal_link(current_ordinal + 1, '&nbsp;→&nbsp;')
+        if print_league == current_coordinates.league and current_coordinates.ordinal < results_interval.maximum:
+            print_ordinal_link(current_coordinates.ordinal + 1, '&nbsp;→&nbsp;')
 
     print '      </p>'
 
+
+
+
+def print_results(cursor):
+    global current_round_id
+    do_round_selector(cursor)
     print_round_timing(cursor)
+
+    preview_round_id = get_current_round_id(cursor, static.contest_stages.voting)
 
     if current_round_id == preview_round_id and static.user_actions.preview_results not in allowed_actions:
         print '    <center><p>'
