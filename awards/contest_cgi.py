@@ -370,14 +370,14 @@ def do_round_selector(cursor, stages_range):
     print '    <p style="text-align: center;">'
 
     for print_league in (static.leagues.weekly, static.leagues.seasonal, static.leagues.annual):
-        if print_league != static.leagues.weekly:
-            print '        &nbsp; | &nbsp;'
-
         cursor.execute('set @current_league = %s', (print_league.id,))
         results_range = range_type(*my.sql.get_unique_row(cursor, 
             'select min(ordinal), max(ordinal) from selector_rounds_parametrized'))
         if results_range == range_type(None, None):
             continue
+
+        if print_league != static.leagues.weekly:
+            print '        &nbsp; | &nbsp;'
 
         central_ordinal = current_coordinates.ordinal if print_league == current_coordinates.league else results_range.maximum
         links_range = range_type(
@@ -763,6 +763,12 @@ def process_nomination(cursor):
 
 
 def print_review(cursor):
+    do_round_selector(cursor, range_type(static.contest_stages.nomination, static.contest_stages.voting))
+    if not current_round_id:
+        errors.append('Данный раунд голосования недоступен.')
+        print_errors()
+        return
+
     if not current_round_id:
         print '    <center><p>'
         print '        Рецензирование окончено. Новый раунд голосования пока не создан.'
