@@ -334,6 +334,12 @@ def get_round_coordinates(cursor, round_id):
     return round_coordinates_type(static.leagues[league_id], ordinal)
 
 
+def prepare_selector_view(cursor, stages_range):
+    cursor.execute(
+        'set @current_contest = %s, @current_stage_priority_minimum = %s, @current_stage_priority_maximum = %s',
+        (static.contest.id, stages_range.minimum.priority, stages_range.maximum.priority))
+
+
 def get_form_round(cursor):
     league = static.leagues.by_identifier(form['league'].value) if 'league' in form else static.leagues.weekly
     cursor.execute('set @current_league = %s', (league.id,))
@@ -353,9 +359,7 @@ def get_form_round(cursor):
 def do_round_selector(cursor, stages_range):
     global current_round_id
 
-    cursor.execute(
-        'set @current_contest = %s, @current_stage_priority_minimum = %s, @current_stage_priority_maximum = %s',
-        (static.contest.id, stages_range.minimum.priority, stages_range.maximum.priority))
+    prepare_selector_view(cursor, stages_range)
 
     if 'ordinal' in form or 'league' in form:
         current_round_id, current_coordinates = get_form_round(cursor)
@@ -426,6 +430,8 @@ def do_round_selector(cursor, stages_range):
             print_ordinal_link(current_coordinates.ordinal + 1, '&nbsp;→&nbsp;')
 
     print '      </p>'
+
+    return current_coordinates
 
 
 # Stage timing
@@ -767,11 +773,19 @@ def process_nomination(cursor):
 
 
 def print_review(cursor):
-    do_round_selector(cursor, range_type(static.contest_stages.nomination, static.contest_stages.voting))
+    current_coordinates = do_round_selector(cursor, range_type(static.contest_stages.nomination, static.contest_stages.voting))
     if not current_round_id:
         errors.append('Данный раунд голосования недоступен.')
         print_errors()
         return
+
+    if current_coordinates.league != static.leagues.weekly:
+        current_query_parameters = 'league=' + current_coordinates.league.identifier + '&'
+        print '    <input type="hidden" name="league" value="' + current_coordinates.league.identifier + '">'
+    else:
+        current_query_parameters = ''
+    current_query_parameters += 'ordinal=' + str(current_coordinates.ordinal)
+    print '    <input type="hidden" name="ordinal" value="' + str(current_coordinates.ordinal) + '">'
 
     if not current_round_id:
         print '    <center><p>'
@@ -820,7 +834,7 @@ def print_review(cursor):
         print '</textarea>'
 
         print '    <p style="text-align: right;">'
-        print '        ' + pages.review.page_link('обычная версия')
+        print '        ' + pages.review.page_link('обычная версия', current_query_parameters)
         print '      </p>'
     else:
         cursor.execute('''
@@ -837,16 +851,26 @@ def print_review(cursor):
             print_nominated_masterpiece(masterpiece, masterpiece_nomination_names)
 
         print '    <p style="text-align: right;">'
-        print '        ' + pages.review.page_link('версия для форума', 'format=forum')
+        print '        ' + pages.review.page_link('версия для форума', 'format=forum&' + current_query_parameters)
         print '      </p>'
 
 
 def process_review(cursor):
+    global current_round_id
+
     if not (user and static.user_actions.review_nominations in allowed_actions):
         errors.append('Недостаточно прав доступа для рецензирования.')
         return
+
+    prepare_selector_view(cursor, range_type(static.contest_stages.nomination, static.contest_stages.voting))
+    current_round_id, current_coordinates = get_form_round(cursor)
     if not current_round_id:
+        errors.append('Элемент недоступен.')
         return
+
+    if current_coordinates.league != static.leagues.weekly:
+        redirect_parameters['league'] = current_coordinates.league.identifier
+    redirect_parameters['ordinal'] = str(current_coordinates.ordinal)
 
     if 'remove' in form_vector_names:
         for masterpiece_id in form_vector_names['remove']:
@@ -897,13 +921,13 @@ def print_voting_closed_message(cursor):
     else:
         print '        Нет доступных голосований.'
 
+    if static.user_actions.nominate in allowed_actions and get_current_round_id(cursor, static.contest_stages.nomination):
+        print '        Пока можно ' + pages.nomination.page_link('номинировать') + ' креатив на следующий раунд.<br>'
+
     next_voting_time = get_stage_next_time(cursor, static.contest_stages.voting)
     if next_voting_time:
-        if static.user_actions.nominate in allowed_actions and get_current_round_id(cursor, static.contest_stages.nomination):
-            print '        Пока можно ' + pages.nomination.page_link('номинировать') + ' креатив на следующий раунд,<br>который'
-        else:
-            print '        Следующий раунд голосования'
-        print '        начнётся в&nbsp;'+ datetime2str(next_voting_time, append_relative_day = True, append_when_weekday = True) + '.'
+        next_voting_time_string = datetime2str(next_voting_time, append_relative_day = True, append_when_weekday = True)
+        print '        Следующее голосование начнётся в&nbsp;' + next_voting_time_string + '.'
 
     print '      <p></center>'
 
