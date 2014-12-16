@@ -1997,7 +1997,7 @@ def main(contest_identifier):
     database = MySQLdb.connect(charset = 'utf8', use_unicode = False, **configuration.database)
     with my.sql.AutoCursor(database) as cursor:
         cursor.execute('set sql_mode = traditional')
-        cursor.execute('set time_zone = \x27+4:00\x27')
+        cursor.execute('set time_zone = \x27+3:00\x27')
 
         maintenance_message_html = my.sql.get_unique_one(cursor, 'select maintenance_message_html from engine')
         if maintenance_message_html:
