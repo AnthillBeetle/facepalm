@@ -1309,20 +1309,23 @@ def merge_user_into(cursor, source, target):
                 source.contest_category = target.contest_category;''',
         (source, target))
     current_voting_round_id = get_current_round_id(cursor, static.contest_stages.voting)
-    cursor.execute('''
-        delete from votes
-        where
-            votes.user = %s and
-            votes.contest_round = %s and
-            votes.contest_category in
-                (select contest_category from common_votes where contest_round = %s)''',
-        (target, current_voting_round_id, current_voting_round_id))
-    cursor.execute('''
-        delete from votes
-        where
-            votes.user = %s and
-            votes.contest_round <> %s''',
-        (target, current_voting_round_id))
+    if current_voting_round_id:
+        cursor.execute('''
+            delete from votes
+            where
+                votes.user = %s and
+                votes.contest_round = %s and
+                votes.contest_category in
+                    (select contest_category from common_votes where contest_round = %s)''',
+            (target, current_voting_round_id, current_voting_round_id))
+        cursor.execute('''
+            delete from votes
+            where
+                votes.user = %s and
+                votes.contest_round <> %s''',
+            (target, current_voting_round_id))
+    else:
+        cursor.execute('delete from votes where votes.user = %s', (target,))
     cursor.execute('update votes set user = %s where user = %s', (target, source))
 
     cursor.execute('update nominations set user = %s where user = %s', (target, source))
