@@ -631,13 +631,16 @@ def print_nomination(cursor):
     print '    <textarea class="content" name="user_comment" id="user_comment" style="width: 100%;"></textarea>'
 
     manual_nomination_categories = [category for category in static.contest_categories
-        if category.nomination_source == static.nomination_sources.manual.id]
+        if category.nomination_source in (
+            static.nomination_sources.manual.id,
+            static.nomination_sources.preselected.id)]
     if manual_nomination_categories:
         print '    <p style="text-align: justify;">'
         for category in manual_nomination_categories:
             print '        <span title="' + escape(category.description) + '">'
             print ('            <span style="white-space: nowrap;">'
                 + '<input type="checkbox" name="category" id="category.' + str(category.id) + '"'
+                + (' checked' if category.nomination_source == static.nomination_sources.preselected.id else '')
                 + ' value="' + str(category.id) + '"></span>'
                 + '<label for="category.' + str(category.id) + '">'
                 + escape(category.name) + '</label>')

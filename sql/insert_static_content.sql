@@ -61,6 +61,7 @@ insert into leagues(identifier, upper, selector_prefix) values('weekly', last_in
 
 insert into nomination_sources(is_unique, identifier, description) values(false, 'disabled', 'категория недоступна для номинирования');
 insert into nomination_sources(is_unique, identifier, description) values(false, 'manual', 'категория выбирается вручную');
+insert into nomination_sources(is_unique, identifier, description) values(false, 'preselected', 'категория выбрана по умолчанию');
 insert into nomination_sources(is_unique, identifier, description) values(true, 'singleton', 'единственная категория');
 insert into nomination_sources(is_unique, identifier, description) values(true, 'best', 'лучшее из выбранного в других категориях');
 insert into nomination_sources(is_unique, identifier, description) values(true, 'other', 'не выбранное ни в одной из других категорий');
@@ -221,9 +222,16 @@ set @contest_id = (select id from contests where identifier = 'karoshi');
 -- );
 insert into contest_categories(contest, nomination_source, priority, name, description) values(
     @contest_id,
-    (select id from nomination_sources where identifier = 'singleton'),
+    (select id from nomination_sources where identifier = 'preselected'),
     2,
     'Кароши люблю',
     'лучшее из лучшего'
+);
+insert into contest_categories(contest, nomination_source, priority, name, description) values(
+    @contest_id,
+    @manual_nomination_source,
+    5,
+    'Особое мнение',
+    'лучшее по мнению дежурного'
 );
 
