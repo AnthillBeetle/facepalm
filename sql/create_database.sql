@@ -19,7 +19,7 @@
 create database creogodville default character set utf8;
 
 create user awards@localhost identified by 'password';
-grant delete, insert, select, update, execute, create temporary tables
+grant delete, insert, select, update, execute, trigger, create temporary tables
     on creogodville.* to awards@localhost;
 
 -- sudo /etc/init.d/mysql restart
