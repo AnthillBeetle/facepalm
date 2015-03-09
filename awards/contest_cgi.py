@@ -67,6 +67,10 @@ def multiline_escape(string, spacing = ''):
     return escape(string).replace('\r', '').replace('\n', '\n' + spacing + '  <br>')
 
 
+def escape_to_single_line(string, spacing = ''):
+    return escape(string.replace('\r', '').replace('\n', ' '))
+
+
 def random_password():
     string = ''
     for i in xrange(0, 6):
@@ -87,15 +91,12 @@ def print_masterpiece_for_forum(masterpiece):
     elif stage_clarification:
         ideabox_note += '_(' + stage_clarification + ')_ '
 
-    print '@___________________________@'
-    print
-
-    print 'bq. ' + ideabox_note + multiline_escape(masterpiece.content.replace('\r', '').replace('\n', ' '))
-    print
+    print 'bq. ' + ideabox_note + escape_to_single_line(masterpiece.content)
 
     if masterpiece.authors_explanation:
-        print 'bq. _Пояснение:_ ' + multiline_escape(masterpiece.authors_explanation.replace('\r', '').replace('\n', ' '))
-        print
+        print '&lt;br&gt;&lt;br&gt;_Пояснение:_ ' + escape_to_single_line(masterpiece.authors_explanation)
+
+    print
 
 
 def print_masterpiece(spacing, masterpiece):
