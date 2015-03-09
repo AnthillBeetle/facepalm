@@ -829,11 +829,34 @@ def print_review(cursor):
         print '    <div style="text-align: center;">Пока ничего не номинировано.</div>'
         return
 
+    cursor.execute('''
+        select nominations.masterpiece, categories.name
+        from nominations, contest_categories categories
+        where
+            nominations.contest_round = %s and
+            nominations.contest_category = categories.id
+        order by nominations.masterpiece, categories.priority''',
+        (current_round_id,))
+    masterpiece_nomination_names = fetch_masterpiece_category_names(cursor)
+
     if format == 'forum':
         print '    <textarea style="width: 100%;" rows="24" readonly>'
 
-        for masterpiece in masterpieces:
-            print_masterpiece_for_forum(masterpiece)
+        for category in static.contest_categories:
+            if category.nomination_source in (
+                    static.nomination_sources.disabled.id,
+                    static.nomination_sources.best.id):
+                continue
+
+            has_printed_category_name = False
+            for masterpiece in masterpieces:
+                if category.name in masterpiece_nomination_names[masterpiece.id]:
+                    if not has_printed_category_name:
+                        has_printed_category_name = True
+                        print '*' + escape(category.name) + '*'
+                        print
+                    print_masterpiece_for_forum(masterpiece)
+                    category_has_masterpieces = True
 
         print '</textarea>'
 
@@ -841,16 +864,6 @@ def print_review(cursor):
         print '        ' + pages.review.page_link('обычная версия', current_query_parameters)
         print '      </p>'
     else:
-        cursor.execute('''
-            select nominations.masterpiece, categories.name
-            from nominations, contest_categories categories
-            where
-                nominations.contest_round = %s and
-                nominations.contest_category = categories.id
-            order by nominations.masterpiece, categories.priority''',
-            (current_round_id,))
-        masterpiece_nomination_names = fetch_masterpiece_category_names(cursor)
-
         for masterpiece in masterpieces:
             print_nominated_masterpiece(masterpiece, masterpiece_nomination_names)
 
