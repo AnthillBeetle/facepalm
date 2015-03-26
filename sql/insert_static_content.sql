@@ -22,6 +22,7 @@
 insert into user_roles(identifier, name) values('banned', 'бан');
 insert into user_roles(identifier, name) values('anonymous', 'аноним');
 insert into user_roles(identifier, name) values('registered', 'зарегистрированный пользователь');
+insert into user_roles(identifier, name) values('dutyman', 'дежурный');
 insert into user_roles(identifier, name) values('administrator', 'администратор');
 
 insert into user_actions(identifier, description) values('access', 'просматривать сайт');
@@ -30,6 +31,7 @@ insert into user_actions(identifier, description) values('vote', 'голосов
 insert into user_actions(identifier, description) values('edit_profile', 'изменять профиль');
 insert into user_actions(identifier, description) values('nominate', 'номинировать');
 insert into user_actions(identifier, description) values('review_nominations', 'рецензировать номинации');
+insert into user_actions(identifier, description) values('overview_nominations', 'просматривать номинации');
 insert into user_actions(identifier, description) values('preview_results', 'просматривать предварительные результаты');
 
 insert into user_roles_and_actions(role, action, is_allowed)
@@ -37,8 +39,10 @@ insert into user_roles_and_actions(role, action, is_allowed)
         roles.id role,
         actions.id action,
         roles.identifier = 'administrator' or actions.identifier not in ('review_nominations', 'preview_results') and (
-            roles.identifier = 'registered' or actions.identifier not in ('nominate', 'edit_profile') and (
-                roles.identifier = 'anonymous' or actions.identifier not in ('access', 'vote', 'register')
+            roles.identifier = 'dutyman' or actions.identifier not in ('overview_nominations') and (
+                roles.identifier = 'registered' or actions.identifier not in ('nominate', 'edit_profile') and (
+                    roles.identifier = 'anonymous' or actions.identifier not in ('access', 'vote', 'register')
+                )
             )
         ) is_allowed
     from

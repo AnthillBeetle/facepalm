@@ -510,21 +510,22 @@ def print_round_timing(cursor):
     stages = static.contest_stages
     if stages.nomination.id in current_stages:
         nomination = current_stages[stages.nomination.id]
-        if selected_page == pages.nomination:
-            print '        Номинирование креатива за период'
-        elif selected_page == pages.review:
-            print '        Рецензирование креатива, номинированного'
-        elif selected_page == pages.voting:
-            print '        Голосование за креатив, номинированного'
-        elif selected_page == pages.results:
-            print '        Результаты голосования за креатив, номинированный'
+        page_descriptions = {
+            pages.nomination.id: 'Номинирование креатива за период',
+            pages.review.id: 'Рецензирование креатива, номинированного',
+            pages.overview.id: 'Просмотр креатива, номинированного',
+            pages.voting.id: 'Голосование за креатив, номинированного',
+            pages.results.id: 'Результаты голосования за креатив, номинированный',
+        }
+        print '        ' + page_descriptions[selected_page.id]
         print '        с&nbsp;' + date2str(nomination.begins) +' по&nbsp;' + date2endstr(nomination.ends) + '.<br>'
     else:
         round_description_prefices = {
             pages.review.id: 'Рецензирование перед голосованием',
+            pages.overview.id: 'Просмотр перед голосованием',
             pages.voting.id: 'Голосование',
             pages.results.id: 'Результаты голосования',
-        };
+        }
         round_description = my.sql.get_unique_one(cursor,
             'select description from contest_rounds where id = %s',
             (current_round_id,))
@@ -532,7 +533,7 @@ def print_round_timing(cursor):
             print '        ' + round_description_prefices[selected_page.id] + ' за ' + escape(round_description) + '.<br>'
     if stages.voting.id in current_stages:
         voting = current_stages[stages.voting.id]
-        if selected_page in (pages.nomination, pages.review):
+        if selected_page in (pages.nomination, pages.review, pages.overview):
             verb = 'началось' if voting.begins <= static.start_time else 'начнётся'
             print '        Голосование&nbsp;' + verb + ' в&nbsp;' + datetime2str(voting.begins, append_relative_day = True, append_when_weekday = True) + '.'
         if selected_page in (pages.voting, pages.results):
@@ -805,7 +806,7 @@ def print_review(cursor):
 
     format = form['format'].value if 'format' in form else None
 
-    order = 'asc' if format else 'desc'
+    order = 'asc' if format == 'forum' else 'desc'
 
     masterpieces = my.sql.get_named_tuples(cursor, '''
         select
@@ -892,6 +893,98 @@ def process_review(cursor):
     if 'remove' in form_vector_names:
         for masterpiece_id in form_vector_names['remove']:
             remove_nomination(cursor, masterpiece_id, any_user = True)
+
+
+# Page: overview
+
+
+def print_overview(cursor):
+    current_coordinates = do_round_selector(cursor, range_type(static.contest_stages.nomination, static.contest_stages.voting))
+    if not current_round_id:
+        errors.append('Данный раунд голосования недоступен.')
+        print_errors()
+        return
+
+    if current_coordinates.league != static.leagues.weekly:
+        current_query_parameters = 'league=' + current_coordinates.league.identifier + '&'
+        print '    <input type="hidden" name="league" value="' + current_coordinates.league.identifier + '">'
+    else:
+        current_query_parameters = ''
+    current_query_parameters += 'ordinal=' + str(current_coordinates.ordinal)
+    print '    <input type="hidden" name="ordinal" value="' + str(current_coordinates.ordinal) + '">'
+
+    if not current_round_id:
+        print '    <center><p>'
+        print '        Просмотр окончен. Новый раунд голосования пока не создан.'
+        print '      <p></center>'
+        return
+    if not user:
+        errors.append('Недостаточно прав доступа для просмотра.')
+        print_errors()
+        return
+
+    print_round_timing(cursor)
+
+    format = 'forum' # form['format'].value if 'format' in form else None
+
+    order = 'asc' if format == 'forum' else 'desc'
+
+    masterpieces = my.sql.get_named_tuples(cursor, '''
+        select
+            masterpieces.*,
+            nominations.added nomination_date,
+            users.name user_name
+        from
+            masterpieces inner join (
+                    select masterpiece, max(added) added
+                    from nominations
+                    where contest_round = %s
+                    group by masterpiece
+                ) nominations on masterpieces.id = nominations.masterpiece
+            left join users on masterpieces.user = users.id
+        order by
+            masterpieces.added ''' + order + ''',
+            masterpieces.id ''' + order,
+        (current_round_id,))
+
+    if not masterpieces:
+        print '    <div style="text-align: center;">Пока ничего не номинировано.</div>'
+        return
+
+    cursor.execute('''
+        select nominations.masterpiece, categories.name
+        from nominations, contest_categories categories
+        where
+            nominations.contest_round = %s and
+            nominations.contest_category = categories.id
+        order by nominations.masterpiece, categories.priority''',
+        (current_round_id,))
+    masterpiece_nomination_names = fetch_masterpiece_category_names(cursor)
+
+    if format == 'forum':
+        print '    <textarea style="width: 100%;" rows="24" readonly>'
+
+        for category in static.contest_categories:
+            if category.nomination_source in (
+                    static.nomination_sources.disabled.id,
+                    static.nomination_sources.best.id):
+                continue
+
+            has_printed_category_name = False
+            for masterpiece in masterpieces:
+                if category.name in masterpiece_nomination_names[masterpiece.id]:
+                    if not has_printed_category_name:
+                        has_printed_category_name = True
+                        print '*' + escape(category.name) + '*'
+                        print
+                    print_masterpiece_for_forum(masterpiece)
+                    category_has_masterpieces = True
+
+        print '</textarea>'
+
+
+def process_overview(cursor):
+    pass
 
 
 # Page: voting
@@ -1682,6 +1775,14 @@ def init_pages():
             print_function = print_review,
             process_function = process_review),
         Page(
+            identifier = 'overview',
+            name = 'просмотр',
+            title = 'Просмотр',
+            contest_stage = static.contest_stages.review,
+            primary_action = static.user_actions.overview_nominations,
+            print_function = print_overview,
+            process_function = process_overview),
+        Page(
             identifier = 'voting',
             name = 'голосование',
             title = 'Голосование',
@@ -1725,6 +1826,9 @@ def init_pages():
 
         if page.primary_action and page.primary_action not in allowed_actions:
             page.disable()
+
+    if pages.review.is_available:
+        pages.overview.hide()
 
     if user and user.name:
         pages.entrance.hide()
