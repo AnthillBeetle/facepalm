@@ -841,7 +841,7 @@ def print_review(cursor):
     masterpiece_nomination_names = fetch_masterpiece_category_names(cursor)
 
     if format == 'forum':
-        print '    <textarea style="width: 100%;" rows="24" readonly>'
+        print '    <textarea style="width: 100%;" rows="24">'
 
         for category in static.contest_categories:
             if category.nomination_source in (
@@ -962,7 +962,7 @@ def print_overview(cursor):
     masterpiece_nomination_names = fetch_masterpiece_category_names(cursor)
 
     if format == 'forum':
-        print '    <textarea style="width: 100%;" rows="24" readonly>'
+        print '    <textarea style="width: 100%;" rows="24">'
 
         for category in static.contest_categories:
             if category.nomination_source in (
