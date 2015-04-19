@@ -582,15 +582,16 @@ def process_entrance(cursor):
 # Page: nomination
 
 
-def print_nominated_masterpiece(masterpiece, masterpiece_nomination_names):
+def print_nominated_masterpiece(masterpiece, masterpiece_nomination_names, overview = False):
     print '    <div style="padding: 1ex;">'
     print_masterpiece(' '*8, masterpiece)
     print '        <div>'
     print '            «' + '», «'.join(masterpiece_nomination_names[masterpiece.id]) + '»'
     if 'nomination_date' in masterpiece._fields:
         print '            ' + masterpiece.nomination_date.strftime('%d.%m.%Y&nbsp;%H:%M')
-    print ('            <input type="submit" class="seamless" style="color: red;" name="remove.' + str(masterpiece.id) +
-        '" value="X" onclick="return confirm(\x27Действительно удалить номинированный креатив?\x27)">')
+    if not overview:
+        print ('            <input type="submit" class="seamless" style="color: red;" name="remove.' + str(masterpiece.id) +
+            '" value="X" onclick="return confirm(\x27Действительно удалить номинированный креатив?\x27)">')
     print '          </div>'
     print '      </div>'
 
@@ -777,7 +778,9 @@ def process_nomination(cursor):
 # Page: review
 
 
-def print_review(cursor):
+def print_review(cursor, overview = False):
+    current_page = pages.overview if overview else pages.review
+
     current_coordinates = do_round_selector(cursor, range_type(static.contest_stages.nomination, static.contest_stages.voting))
     if not current_round_id:
         errors.append('Данный раунд голосования недоступен.')
@@ -794,11 +797,18 @@ def print_review(cursor):
 
     if not current_round_id:
         print '    <center><p>'
-        print '        Рецензирование окончено. Новый раунд голосования пока не создан.'
+        if overview:
+            print '        Просмотр окончен.'
+        else:
+            print '        Рецензирование окончено.'
+        print '        Новый раунд голосования пока не создан.'
         print '      <p></center>'
         return
     if not user:
-        errors.append('Недостаточно прав доступа для рецензирования.')
+        if overview:
+            errors.append('Недостаточно прав доступа для просмотра.')
+        else:
+            errors.append('Недостаточно прав доступа для рецензирования.')
         print_errors()
         return
 
@@ -811,8 +821,8 @@ def print_review(cursor):
     masterpieces = my.sql.get_named_tuples(cursor, '''
         select
             masterpieces.*,
-            nominations.added nomination_date,
-            users.name user_name
+            nominations.added nomination_date''' + ('' if overview else ''',
+            users.name user_name''') + '''
         from
             masterpieces inner join (
                     select masterpiece, max(added) added
@@ -862,14 +872,14 @@ def print_review(cursor):
         print '</textarea>'
 
         print '    <p style="text-align: right;">'
-        print '        ' + pages.review.page_link('обычная версия', current_query_parameters)
+        print '        ' + current_page.page_link('обычная версия', current_query_parameters)
         print '      </p>'
     else:
         for masterpiece in masterpieces:
-            print_nominated_masterpiece(masterpiece, masterpiece_nomination_names)
+            print_nominated_masterpiece(masterpiece, masterpiece_nomination_names, overview)
 
         print '    <p style="text-align: right;">'
-        print '        ' + pages.review.page_link('версия для форума', 'format=forum&' + current_query_parameters)
+        print '        ' + current_page.page_link('версия для форума', 'format=forum&' + current_query_parameters)
         print '      </p>'
 
 
@@ -899,88 +909,7 @@ def process_review(cursor):
 
 
 def print_overview(cursor):
-    current_coordinates = do_round_selector(cursor, range_type(static.contest_stages.nomination, static.contest_stages.voting))
-    if not current_round_id:
-        errors.append('Данный раунд голосования недоступен.')
-        print_errors()
-        return
-
-    if current_coordinates.league != static.leagues.weekly:
-        current_query_parameters = 'league=' + current_coordinates.league.identifier + '&'
-        print '    <input type="hidden" name="league" value="' + current_coordinates.league.identifier + '">'
-    else:
-        current_query_parameters = ''
-    current_query_parameters += 'ordinal=' + str(current_coordinates.ordinal)
-    print '    <input type="hidden" name="ordinal" value="' + str(current_coordinates.ordinal) + '">'
-
-    if not current_round_id:
-        print '    <center><p>'
-        print '        Просмотр окончен. Новый раунд голосования пока не создан.'
-        print '      <p></center>'
-        return
-    if not user:
-        errors.append('Недостаточно прав доступа для просмотра.')
-        print_errors()
-        return
-
-    print_round_timing(cursor)
-
-    format = 'forum' # form['format'].value if 'format' in form else None
-
-    order = 'asc' if format == 'forum' else 'desc'
-
-    masterpieces = my.sql.get_named_tuples(cursor, '''
-        select
-            masterpieces.*,
-            nominations.added nomination_date,
-            users.name user_name
-        from
-            masterpieces inner join (
-                    select masterpiece, max(added) added
-                    from nominations
-                    where contest_round = %s
-                    group by masterpiece
-                ) nominations on masterpieces.id = nominations.masterpiece
-            left join users on masterpieces.user = users.id
-        order by
-            masterpieces.added ''' + order + ''',
-            masterpieces.id ''' + order,
-        (current_round_id,))
-
-    if not masterpieces:
-        print '    <div style="text-align: center;">Пока ничего не номинировано.</div>'
-        return
-
-    cursor.execute('''
-        select nominations.masterpiece, categories.name
-        from nominations, contest_categories categories
-        where
-            nominations.contest_round = %s and
-            nominations.contest_category = categories.id
-        order by nominations.masterpiece, categories.priority''',
-        (current_round_id,))
-    masterpiece_nomination_names = fetch_masterpiece_category_names(cursor)
-
-    if format == 'forum':
-        print '    <textarea style="width: 100%;" rows="24">'
-
-        for category in static.contest_categories:
-            if category.nomination_source in (
-                    static.nomination_sources.disabled.id,
-                    static.nomination_sources.best.id):
-                continue
-
-            has_printed_category_name = False
-            for masterpiece in masterpieces:
-                if category.name in masterpiece_nomination_names[masterpiece.id]:
-                    if not has_printed_category_name:
-                        has_printed_category_name = True
-                        print '*' + escape(category.name) + '*'
-                        print
-                    print_masterpiece_for_forum(masterpiece)
-                    category_has_masterpieces = True
-
-        print '</textarea>'
+    print_review(cursor, overview = True)
 
 
 def process_overview(cursor):
