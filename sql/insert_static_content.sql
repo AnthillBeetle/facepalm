@@ -39,10 +39,8 @@ insert into user_roles_and_actions(role, action, is_allowed)
         roles.id role,
         actions.id action,
         roles.identifier = 'administrator' or actions.identifier not in ('review_nominations', 'preview_results') and (
-            roles.identifier = 'dutyman' or actions.identifier not in ('overview_nominations') and (
-                roles.identifier = 'registered' or actions.identifier not in ('nominate', 'edit_profile') and (
-                    roles.identifier = 'anonymous' or actions.identifier not in ('access', 'vote', 'register')
-                )
+            roles.identifier = 'registered' or actions.identifier not in ('nominate', 'edit_profile', 'overview_nominations') and (
+                roles.identifier = 'anonymous' or actions.identifier not in ('access', 'vote', 'register')
             )
         ) is_allowed
     from
