@@ -30,8 +30,8 @@ insert into user_actions(identifier, description) values('register', 'регис
 insert into user_actions(identifier, description) values('vote', 'голосовать');
 insert into user_actions(identifier, description) values('edit_profile', 'изменять профиль');
 insert into user_actions(identifier, description) values('nominate', 'номинировать');
-insert into user_actions(identifier, description) values('review_nominations', 'рецензировать номинации');
 insert into user_actions(identifier, description) values('overview_nominations', 'просматривать номинации');
+insert into user_actions(identifier, description) values('review_nominations', 'рецензировать номинации');
 insert into user_actions(identifier, description) values('preview_results', 'просматривать предварительные результаты');
 
 insert into user_roles_and_actions(role, action, is_allowed)
