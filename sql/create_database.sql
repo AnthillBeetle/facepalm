@@ -25,6 +25,6 @@ grant delete, insert, select, update, execute, trigger, create temporary tables
 -- sudo /etc/init.d/mysql restart
 
 -- use creogodville;
--- set time_zone = '+4:00';
+-- set time_zone = '+3:00';
 -- set sql_mode = traditional;
 
