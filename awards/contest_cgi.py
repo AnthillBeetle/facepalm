@@ -514,7 +514,7 @@ def print_round_timing(cursor):
             pages.nomination.id: 'Номинирование креатива за период',
             pages.review.id: 'Рецензирование креатива, номинированного',
             pages.overview.id: 'Просмотр креатива, номинированного',
-            pages.voting.id: 'Голосование за креатив, номинированного',
+            pages.voting.id: 'Голосование за креатив, номинированный',
             pages.results.id: 'Результаты голосования за креатив, номинированный',
         }
         print '        ' + page_descriptions[selected_page.id]
