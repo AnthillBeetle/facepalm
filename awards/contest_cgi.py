@@ -1240,28 +1240,95 @@ def print_results(cursor):
     print '          </div>'
     print '      </div>'
 
+    cursor.execute('''
+        create temporary table current_round_results(
+            contest_category int not null,
+            masterpiece int not null,
+            registered_score int not null,
+            score float not null,
+            primary key(contest_category, masterpiece))''')
     if current_round_id == preview_round_id:
-        results_query = 'round_results_view_parametrized'
-        results_query_uses_variables = True
+        cursor.execute('''
+            create temporary table current_votes_user(
+                contest_category int not null,
+                user int not null,
+                masterpiece int not null,
+                remote_address varchar(255) not null,
+                name varchar(255) default null,
+                primary key(contest_category, user, masterpiece),
+                unique key(contest_category, name, remote_address))''')
+        cursor.execute('''
+            create temporary table current_vote_multiples(
+                contest_category int not null,
+                remote_address varchar(255) not null,
+                multiple_count int not null,
+                primary key(contest_category, remote_address))''')
+        cursor.execute('''
+            insert into
+                current_votes_user
+            select
+                votes.contest_category,
+                votes.user,
+                votes.masterpiece,
+                users.remote_address,
+                users.name
+            from
+                votes inner join users on votes.user = users.id
+            where
+                votes.contest_round = %s''',
+            (current_round_id,))
+        cursor.execute('''
+            insert into
+                current_vote_multiples
+            select
+                contest_category,
+                remote_address,
+                count(1) as multiple_count
+            from
+                current_votes_user
+            where
+                name is null
+            group by
+                contest_category,
+                remote_address''')
+        cursor.execute('''
+            insert into
+                current_round_results
+            select
+                votes.contest_category,
+                votes.masterpiece,
+                count(votes.name)*2 registered_score,
+                sum(if(votes.name is null, 1.0/vote_multiples.multiple_count, 2)) score
+            from
+                current_votes_user votes left join current_vote_multiples vote_multiples on
+                    votes.contest_category = vote_multiples.contest_category and
+                    votes.remote_address = vote_multiples.remote_address
+            group by
+                contest_category,
+                masterpiece''')
     else:
-        results_query = '(select * from round_results where contest_round = %s and contest_category = %s)'
-        results_query_uses_variables = False
+        cursor.execute('''
+            insert into
+                current_round_results
+            select
+                contest_category,
+                masterpiece,
+                registered_score,
+                score
+            from
+                round_results
+            where
+                contest_round = %s''',
+            (current_round_id,))
 
     list_available_categories(cursor)
     for category in available_categories:
         print '    <div style="padding: 1ex;">'
         print '        <b>' + escape(category.name) + '</b>'
 
-        results_query_parameters = (current_round_id, category.id)
-        if results_query_uses_variables:
-            cursor.execute(
-                'set @current_contest_round = %s, @current_contest_category = %s',
-                results_query_parameters)
-            results_query_parameters = ()
-
         total_score = my.sql.get_unique_one(cursor,
-            'select sum(score) from ' + results_query + ' results',
-            results_query_parameters)
+            'select sum(score) from current_round_results where contest_category = %s',
+            (category.id,))
 
         if not total_score:
             print '        <div style="padding-left: 4ex; padding-top: 1ex; padding-bottom: 1ex;">'
@@ -1279,18 +1346,20 @@ def print_results(cursor):
                 users.name as user_name,
                 winners.masterpiece is not null as is_winner
             from
-                ''' + results_query + ''' results
+                current_round_results results
                 inner join masterpieces on results.masterpiece = masterpieces.id
                 inner join users on masterpieces.user = users.id
                 left join (select * from round_winners where contest_round = %s and contest_category = %s) winners
                     on results.masterpiece = winners.masterpiece
+            where
+                results.contest_category = %s
             order by
                 results.score desc,
                 results.registered_score desc,
                 masterpieces.added,
                 masterpieces.id
             limit 3''',
-            results_query_parameters + (current_round_id, category.id))
+            (current_round_id, category.id, category.id))
         if current_round_id == preview_round_id:
             winning_score = masterpieces[0].score
             if len(masterpieces) >= 3 and masterpieces[2].score == winning_score:
