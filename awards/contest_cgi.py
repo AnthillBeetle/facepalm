@@ -735,6 +735,12 @@ def process_nomination(cursor):
     authors_explanation = form['authors_explanation'].value.strip()
     user_comment = form['user_comment'].value.strip()
 
+    content = content.replace('…', '...')
+    authors_explanation = authors_explanation.replace('…', '...')
+    explanation_prefix = 'Пояснение:'
+    if authors_explanation.startswith(explanation_prefix):
+        authors_explanation = authors_explanation[len(explanation_prefix):].lstrip()
+
     if not content:
         errors.append('Не указан креатив.')
         return
