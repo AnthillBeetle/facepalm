@@ -1238,7 +1238,7 @@ def print_results(cursor):
     print '                <td bgcolor="lightblue" align="center"><font color="black">&nbsp;анонимы&nbsp;</font></td>'
     print '              </tr>'
     print '            <tr>'
-    print '                <td><b>' + static.contest.prix_character_html + '</b> победитель в категории</td>'
+    print '                <td colspan="2"><b>' + static.contest.prix_character_html + '</b> победитель в категории</td>'
     print '              </tr></table>'
     print '          </div>'
     print '      </div>'
