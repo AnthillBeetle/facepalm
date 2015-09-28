@@ -236,4 +236,11 @@ insert into contest_categories(contest, nomination_source, priority, name, descr
     'Особое мнение',
     'лучшее по мнению дежурного'
 );
+insert into contest_categories(contest, nomination_source, priority, name, description) values(
+    @contest_id,
+    @manual_nomination_source,
+    7,
+    'Отличная коррекция',
+    'собственно, отличная коррекция'
+);
 
