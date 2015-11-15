@@ -51,6 +51,7 @@ import httplib
 import json
 import random
 import urllib
+import urlparse
 
 
 import static
@@ -859,6 +860,9 @@ def print_review(cursor, overview = False):
     if format == 'forum':
         print '    <textarea style="width: 100%;" rows="24">'
 
+        print 'ВНИМАНИЕ, ВНИМАНИЕ, ИДЕТ "ГОЛОСОВАНИЕ":' + pages.voting.absolute_url() + ':'
+        print
+
         for category in static.contest_categories:
             if category.nomination_source in (
                     static.nomination_sources.disabled.id,
@@ -874,6 +878,9 @@ def print_review(cursor, overview = False):
                         print
                     print_masterpiece_for_forum(masterpiece)
                     category_has_masterpieces = True
+
+        print '"Голосуйте":' + pages.voting.absolute_url() + ',',
+        print 'и не забывайте "номинировать":' + pages.nomination.absolute_url() + ' креатив на следующий раунд!'
 
         print '</textarea>'
 
@@ -1751,6 +1758,8 @@ class Page:
         if name == None:
             name = self.name
         return '<a class="pagename" href="' + (self.location + query_parameters).rstrip('&?') + '">' + name + '</a>'
+    def absolute_url(self, query_parameters = ''):
+        return urlparse.urljoin(os.environ['SCRIPT_URI'], (self.location + query_parameters).rstrip('&?'))
 
 
 def init_pages():
