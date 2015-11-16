@@ -1266,13 +1266,13 @@ def print_results(cursor):
                 remote_address varchar(255) not null,
                 name varchar(255) default null,
                 primary key(contest_category, user, masterpiece),
-                unique key(contest_category, name, remote_address))''')
+                unique key(contest_category, name(128), remote_address(128)))''')
         cursor.execute('''
             create temporary table current_vote_multiples(
                 contest_category int not null,
                 remote_address varchar(255) not null,
                 multiple_count int not null,
-                primary key(contest_category, remote_address))''')
+                primary key(contest_category, remote_address(128)))''')
         cursor.execute('''
             insert into
                 current_votes_user
