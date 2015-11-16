@@ -1759,7 +1759,11 @@ class Page:
             name = self.name
         return '<a class="pagename" href="' + (self.location + query_parameters).rstrip('&?') + '">' + name + '</a>'
     def absolute_url(self, query_parameters = ''):
-        return urlparse.urljoin(os.environ['SCRIPT_URI'], (self.location + query_parameters).rstrip('&?'))
+        if 'SCRIPT_URI' in os.environ:
+            url = os.environ['SCRIPT_URI']
+        else:
+            url = os.environ['REQUEST_SCHEME'] + '://' + os.environ['HTTP_HOST']
+        return urlparse.urljoin(url, (self.location + query_parameters).rstrip('&?'))
 
 
 def init_pages():
