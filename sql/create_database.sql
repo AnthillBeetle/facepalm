@@ -16,7 +16,7 @@
 --- along with Facepalm web-engine. If not, see <http://www.gnu.org/licenses/>.
 
 
-create database creogodville default character set utf8;
+create database creogodville default character set utf8mb4;
 
 create user awards@localhost identified by 'password';
 grant delete, insert, select, update, execute, trigger, create temporary tables

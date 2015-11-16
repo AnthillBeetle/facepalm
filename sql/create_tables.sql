@@ -181,7 +181,7 @@ create table masterpieces(
     authors_explanation text not null default '',
     user_comment text not null default '',
     key(google_docs_index),
-    unique key(contest, content(255), authors_explanation(255)),
+    unique key(contest, content(128), authors_explanation(128)),
     foreign key(contest) references contests(id),
     foreign key(user) references users(id),
     foreign key(ideabox_section) references ideabox_sections(id),
