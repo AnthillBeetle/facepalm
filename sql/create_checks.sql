@@ -13,10 +13,10 @@ delimiter ;;
 
 -- else
 
-    create procedure signal5(signal_message_text text, signal_table_name text, signal_column_name text)
-    begin
-        call caught_signal(signal_message_text, signal_table_name, signal_column_name);
-    end;;
+--    create procedure signal5(signal_message_text text, signal_table_name text, signal_column_name text)
+--    begin
+--        call caught_signal(signal_message_text, signal_table_name, signal_column_name);
+--    end;;
     
 -- end if;
 
