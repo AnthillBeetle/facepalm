@@ -1,19 +1,19 @@
---- Copyright 2012 Anthill Beetle
+--   Copyright 2012 Anthill Beetle
 
---- This file is part of Facepalm web-engine.
+--   This file is part of Facepalm web-engine.
 
---- Facepalm web-engine is free software: you can redistribute it and/or modify
---- it under the terms of the GNU General Public License as published by
---- the Free Software Foundation, either version 3 of the License, or
---- (at your option) any later version.
+--   Facepalm web-engine is free software: you can redistribute it and/or modify
+--   it under the terms of the GNU General Public License as published by
+--   the Free Software Foundation, either version 3 of the License, or
+--   (at your option) any later version.
 
---- Facepalm web-engine is distributed in the hope that it will be useful,
---- but WITHOUT ANY WARRANTY; without even the implied warranty of
---- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
---- GNU General Public License for more details.
+--   Facepalm web-engine is distributed in the hope that it will be useful,
+--   but WITHOUT ANY WARRANTY; without even the implied warranty of
+--   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--   GNU General Public License for more details.
 
---- You should have received a copy of the GNU General Public License
---- along with Facepalm web-engine. If not, see <http://www.gnu.org/licenses/>.
+--   You should have received a copy of the GNU General Public License
+--   along with Facepalm web-engine. If not, see <http://www.gnu.org/licenses/>.
 
 
 create function get_contest() returns integer no sql return @current_contest;
@@ -29,7 +29,7 @@ create view selector_rounds_parametrized as
             priority between get_stage_priority_minimum() and get_stage_priority_maximum());
 
 
----
+--  
 
 
 create function get_contest_round() returns integer no sql return @current_contest_round;
@@ -96,7 +96,7 @@ create view round_results_view_parametrized as
         masterpiece;
 
 
----
+--  
 
 
 create view vote_multiples as
@@ -144,7 +144,7 @@ create view round_results_view as
         masterpiece;
 
 
-----
+--  -
 
 
 create view round_max_scores as
@@ -196,7 +196,7 @@ create view round_winners_view as
         multiples.multiple_count <= 2;
 
 
-----
+--  -
 
 
 create view round_winners_info as
