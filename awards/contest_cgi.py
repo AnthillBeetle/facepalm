@@ -79,7 +79,7 @@ def random_password():
     return base64.b64encode(string)
 
 
-def print_masterpiece_for_forum(masterpiece):
+def print_masterpiece_for_forum(masterpiece, hide_authors = False):
     section_prefix = static.ideabox_sections[masterpiece.ideabox_section].prefix
     stage_clarification = static.ideabox_stages[masterpiece.ideabox_stage].clarification
     ideabox_note = ''
@@ -98,6 +98,14 @@ def print_masterpiece_for_forum(masterpiece):
         print '&lt;br&gt;&lt;br&gt;_Пояснение:_ ' + escape_to_single_line(masterpiece.authors_explanation)
 
     print
+
+    if 'user_name' in masterpiece._fields and not hide_authors:
+        if masterpiece.user_comment:
+            print '«' + escape_to_single_line(masterpiece.user_comment) + '»',
+        else:
+            print 'Б/К',
+        print '— *' + escape(masterpiece.user_name) + '*'
+        print
 
 
 def print_masterpiece(spacing, masterpiece):
@@ -326,7 +334,12 @@ def print_login_check_form():
 
 range_type = collections.namedtuple('Range', ('minimum', 'maximum'))
 
-round_coordinates_type = collections.namedtuple('RoundCoordinates', ('league', 'ordinal'))
+class round_coordinates_type(collections.namedtuple('RoundCoordinates', ('league', 'ordinal'))):
+    def to_string_dict(self):
+        result = {'ordinal': str(self.ordinal)}
+        if self.league != static.leagues.weekly:
+            result['league'] = self.league.identifier
+        return result
 
 
 def get_round_coordinates(cursor, round_id):
@@ -390,14 +403,7 @@ def do_round_selector(cursor, stages_range):
             max(results_range.minimum, min(central_ordinal - 4, results_range.maximum - 8)),
             min(results_range.maximum, max(central_ordinal + 4, results_range.minimum + 8)))
 
-        def print_ordinal_link(
-            print_ordinal,
-            name = None,
-            __query_head = (
-                ('league=' + print_league.identifier + '&' if print_league != static.leagues.weekly else '')
-                + 'ordinal='
-            )
-        ):
+        def print_ordinal_link(print_ordinal, name = None):
             if not name:
                 name = str(print_ordinal)
             print_coordinates = round_coordinates_type(print_league, print_ordinal)
@@ -406,7 +412,7 @@ def do_round_selector(cursor, stages_range):
             if print_coordinates == current_coordinates:
                 print '        <b>' + name + '</b>'
             else:
-                print '        ' + selected_page.page_link(name, __query_head + str(print_ordinal))
+                print '        ' + selected_page.page_link(name, urllib.urlencode(print_coordinates.to_string_dict()))
 
         print escape(print_league.selector_prefix) + ':'
 
@@ -434,6 +440,21 @@ def do_round_selector(cursor, stages_range):
     print '      </p>'
 
     return current_coordinates
+
+
+def print_format_switcher(current_page, current_coordinates):
+    format = form['format'].value if 'format' in form else None
+
+    link_dict = current_coordinates.to_string_dict()
+    if format == 'forum':
+        link_name = 'обычная версия'
+    else:
+        link_name = 'версия для форума'
+        link_dict['format'] = 'forum'
+
+    print '    <p style="text-align: right;">'
+    print '        ' + current_page.page_link(link_name, urllib.urlencode(link_dict))
+    print '      </p>'
 
 
 # Stage timing
@@ -794,13 +815,8 @@ def print_review(cursor, overview = False):
         print_errors()
         return
 
-    if current_coordinates.league != static.leagues.weekly:
-        current_query_parameters = 'league=' + current_coordinates.league.identifier + '&'
-        print '    <input type="hidden" name="league" value="' + current_coordinates.league.identifier + '">'
-    else:
-        current_query_parameters = ''
-    current_query_parameters += 'ordinal=' + str(current_coordinates.ordinal)
-    print '    <input type="hidden" name="ordinal" value="' + str(current_coordinates.ordinal) + '">'
+    for key, value in current_coordinates.to_string_dict().iteritems():
+        print '    <input type="hidden" name="' + escape(key) + '" value="' + escape(value) + '">'
 
     if not current_round_id:
         print '    <center><p>'
@@ -874,26 +890,20 @@ def print_review(cursor, overview = False):
                 if category.name in masterpiece_nomination_names[masterpiece.id]:
                     if not has_printed_category_name:
                         has_printed_category_name = True
-                        print '*' + escape(category.name) + '*'
+                        print '_*' + escape(category.name) + '*_'
                         print
-                    print_masterpiece_for_forum(masterpiece)
+                    print_masterpiece_for_forum(masterpiece, hide_authors = True)
                     category_has_masterpieces = True
 
         print '"Голосуйте":' + pages.voting.absolute_url() + ',',
         print 'и не забывайте "номинировать":' + pages.nomination.absolute_url() + ' креатив на следующий раунд!'
 
         print '</textarea>'
-
-        print '    <p style="text-align: right;">'
-        print '        ' + current_page.page_link('обычная версия', current_query_parameters)
-        print '      </p>'
     else:
         for masterpiece in masterpieces:
             print_nominated_masterpiece(masterpiece, masterpiece_nomination_names, overview)
 
-        print '    <p style="text-align: right;">'
-        print '        ' + current_page.page_link('версия для форума', 'format=forum&' + current_query_parameters)
-        print '      </p>'
+    print_format_switcher(current_page, current_coordinates)
 
 
 def process_review(cursor):
@@ -909,9 +919,7 @@ def process_review(cursor):
         errors.append('Элемент недоступен.')
         return
 
-    if current_coordinates.league != static.leagues.weekly:
-        redirect_parameters['league'] = current_coordinates.league.identifier
-    redirect_parameters['ordinal'] = str(current_coordinates.ordinal)
+    redirect_parameters.update(current_coordinates.to_string_dict())
 
     if 'remove' in form_vector_names:
         for masterpiece_id in form_vector_names['remove']:
@@ -1221,13 +1229,15 @@ def process_voting(cursor):
 def print_results(cursor):
     global current_round_id
 
-    do_round_selector(cursor, range_type(static.contest_stages.voting, static.contest_stages.results))
+    current_coordinates = do_round_selector(cursor, range_type(static.contest_stages.voting, static.contest_stages.results))
     if not current_round_id:
         errors.append('Данный раунд голосования недоступен.')
         print_errors()
         return
 
     print_round_timing(cursor)
+
+    format = form['format'].value if 'format' in form else None
 
     preview_round_id = get_current_round_id(cursor, static.contest_stages.voting)
 
@@ -1237,18 +1247,23 @@ def print_results(cursor):
         print '      </p></center>'
         return
 
-    print '    <div style="padding: 1ex;">'
-    print '        <b>Обозначения</b>'
-    print '        <div style="padding-left: 4ex; padding-top: 1ex; padding-bottom: 1ex;">'
-    print '            <table><tr>'
-    print '                <td bgcolor="blue"><font color="white">&nbsp;зарегистрированные&nbsp;</font></td>'
-    print '                <td bgcolor="lightblue" align="center"><font color="black">&nbsp;анонимы&nbsp;</font></td>'
-    print '              </tr>'
-    print '            <tr>'
-    print '                <td colspan="2"><b>' + static.contest.prix_character_html + '</b> победитель в категории</td>'
-    print '              </tr></table>'
-    print '          </div>'
-    print '      </div>'
+    if format == 'forum':
+        print '    <textarea style="width: 100%;" rows="24">'
+        print 'ОБЪЯВЛЯЕМ "РЕЗУЛЬТАТЫ":' + pages.results.absolute_url() + ' ГОЛОСОВАНИЯ:'
+        print
+    else:
+        print '    <div style="padding: 1ex;">'
+        print '        <b>Обозначения</b>'
+        print '        <div style="padding-left: 4ex; padding-top: 1ex; padding-bottom: 1ex;">'
+        print '            <table><tr>'
+        print '                <td bgcolor="blue"><font color="white">&nbsp;зарегистрированные&nbsp;</font></td>'
+        print '                <td bgcolor="lightblue" align="center"><font color="black">&nbsp;анонимы&nbsp;</font></td>'
+        print '              </tr>'
+        print '            <tr>'
+        print '                <td colspan="2"><b>' + static.contest.prix_character_html + '</b> победитель в категории</td>'
+        print '              </tr></table>'
+        print '          </div>'
+        print '      </div>'
 
     cursor.execute('''
         create temporary table current_round_results(
@@ -1333,18 +1348,28 @@ def print_results(cursor):
 
     list_available_categories(cursor)
     for category in available_categories:
-        print '    <div style="padding: 1ex;">'
-        print '        <b>' + escape(category.name) + '</b>'
+        if format == 'forum':
+            print '—'
+            print
+            print '_*' + escape(category.name) + '*_'
+            print
+        else:
+            print '    <div style="padding: 1ex;">'
+            print '        <b>' + escape(category.name) + '</b>'
 
         total_score = my.sql.get_unique_one(cursor,
             'select sum(score) from current_round_results where contest_category = %s',
             (category.id,))
 
         if not total_score:
-            print '        <div style="padding-left: 4ex; padding-top: 1ex; padding-bottom: 1ex;">'
-            print '            В данной категории ничего не выбрано.'
-            print '          </div>'
-            print '      </div>'
+            if format == 'forum':
+                print '_В данной категории ничего не выбрано._'
+                print
+            else:
+                print '        <div style="padding-left: 4ex; padding-top: 1ex; padding-bottom: 1ex;">'
+                print '            В данной категории ничего не выбрано.'
+                print '          </div>'
+                print '      </div>'
             continue
  
         total_score = float(total_score)
@@ -1370,37 +1395,59 @@ def print_results(cursor):
                 masterpieces.id
             limit 3''',
             (current_round_id, category.id, category.id))
+
         if current_round_id == preview_round_id:
             winning_score = masterpieces[0].score
             if len(masterpieces) >= 3 and masterpieces[2].score == winning_score:
                 winning_score = total_score
+
+        has_winners = False
         for masterpiece in masterpieces:
             if not masterpiece.score:
                 continue
 
             is_winner = (masterpiece.score == winning_score) if current_round_id == preview_round_id else masterpiece.is_winner
+            has_winners |= is_winner
 
-            registered_percentage = str(int(round(100*masterpiece.registered_score/total_score)))
-            anonymous_score = float(masterpiece.score) - masterpiece.registered_score
-            anonymous_percentage = str(int(round(100*anonymous_score/total_score)))
-            print '        <div style="padding-left: 4ex; padding-top: 1ex; padding-bottom: 1ex;">'
+            if format == 'forum':
+                if is_winner:
+                    print_masterpiece_for_forum(masterpiece)
+            else:
+                registered_percentage = str(int(round(100*masterpiece.registered_score/total_score)))
+                anonymous_score = float(masterpiece.score) - masterpiece.registered_score
+                anonymous_percentage = str(int(round(100*anonymous_score/total_score)))
+                print '        <div style="padding-left: 4ex; padding-top: 1ex; padding-bottom: 1ex;">'
 
-            print '            <table width="100%"><tr>'
-            if registered_percentage != '0':
-                print '                <td bgcolor="blue" width="' + registered_percentage + '%" align="center"><font color="white">' + str(int(round(masterpiece.registered_score))) + '</font></td>'
-            if anonymous_percentage != '0':
-                print '                <td bgcolor="lightblue" width="' + anonymous_percentage + '%" align="center"><font color="black">' + str(round(anonymous_score, 1)) + '</font></td>'
-            if is_winner:
-                print '                <td><b>' + static.contest.prix_character_html + '</b></td>'
-            print '                <td></td>'
-            print '              </tr></table>'
+                print '            <table width="100%"><tr>'
+                if registered_percentage != '0':
+                    print '                <td bgcolor="blue" width="' + registered_percentage + '%" align="center"><font color="white">' + str(int(round(masterpiece.registered_score))) + '</font></td>'
+                if anonymous_percentage != '0':
+                    print '                <td bgcolor="lightblue" width="' + anonymous_percentage + '%" align="center"><font color="black">' + str(round(anonymous_score, 1)) + '</font></td>'
+                if is_winner:
+                    print '                <td><b>' + static.contest.prix_character_html + '</b></td>'
+                print '                <td></td>'
+                print '              </tr></table>'
 
-            print_masterpiece(' '*12, masterpiece)
+                print_masterpiece(' '*12, masterpiece)
 
-            print '          </div>'
+                print '          </div>'
 
-        print '      </div>'
-        
+        if format == 'forum':
+            if not has_winners:
+                print '_Победителя выявить не удалось._'
+                print
+        else:
+            print '      </div>'
+
+    if format == 'forum':
+        print '—'
+        print
+        print 'Спасибо всем участникам, и не забывайте "номинировать":' + pages.nomination.absolute_url() + ' креатив на следующий раунд!'
+
+        print '</textarea>'
+
+    print_format_switcher(pages.results, current_coordinates)
+
 
 def process_results(cursor):
     pass
